@@ -1,7 +1,7 @@
-// firebase.js
+﻿// firebase.js
 const admin = require("firebase-admin");
 
-// Ensure required env variables exist
+// List of required environment variables
 const requiredVars = [
   "FIREBASE_TYPE",
   "FIREBASE_PROJECT_ID",
@@ -14,17 +14,20 @@ const requiredVars = [
   "FIREBASE_CLIENT_X509_CERT_URL",
 ];
 
+// Check that all required env variables are set
 requiredVars.forEach((key) => {
   if (!process.env[key]) {
-    throw new Error(`${key} environment variable is not set`);
+    throw new Error(`Environment variable ${key} is not set`);
   }
 });
 
-// Construct the service account object from env variables
+// Construct Firebase service account
 const serviceAccount = {
   type: process.env.FIREBASE_TYPE,
   project_id: process.env.FIREBASE_PROJECT_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  private_key: process.env.FIREBASE_PRIVATE_KEY
+    // Convert escaped \n into real line breaks
+    .replace(/\\n/g, "\n"),
   client_email: process.env.FIREBASE_CLIENT_EMAIL,
   client_id: process.env.FIREBASE_CLIENT_ID,
   auth_uri: process.env.FIREBASE_AUTH_URI,
@@ -33,11 +36,13 @@ const serviceAccount = {
   client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
 };
 
-// Initialize Firebase Admin
+// Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
   });
 }
+
+console.log("✅ Firebase Admin initialized successfully");
 
 module.exports = admin;
