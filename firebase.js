@@ -1,5 +1,6 @@
 ﻿// firebase.js
 const admin = require("firebase-admin");
+require("dotenv").config(); // Make sure to load .env in Node.js
 
 // List of required environment variables
 const requiredVars = [
@@ -27,7 +28,9 @@ const serviceAccount = {
   project_id: process.env.FIREBASE_PROJECT_ID,
   private_key: process.env.FIREBASE_PRIVATE_KEY
     // Convert escaped \n into real line breaks
-    .replace(/\\n/g, "\n"),
+    .replace(/\\n/g, "\n")
+    // Remove surrounding quotes if present
+    .replace(/^"(.*)"$/, "$1"),
   client_email: process.env.FIREBASE_CLIENT_EMAIL,
   client_id: process.env.FIREBASE_CLIENT_ID,
   auth_uri: process.env.FIREBASE_AUTH_URI,
