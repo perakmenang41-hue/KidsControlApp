@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.location.Location
+import com.example.kidscontrolapp.service.DangerZoneService
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -37,7 +38,6 @@ import coil.compose.AsyncImage
 import com.example.kidscontrolapp.R
 import com.example.kidscontrolapp.components.TopBar
 import com.example.kidscontrolapp.navigation.Routes
-import com.example.kidscontrolapp.services.DangerZoneService
 import com.example.kidscontrolapp.utils.createCirclePoints
 import com.example.kidscontrolapp.utils.sendDangerNotification
 import com.example.kidscontrolapp.viewmodel.DangerZoneViewModel

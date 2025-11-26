@@ -1,99 +1,78 @@
 ﻿require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-const admin = require("firebase-admin");
-
-// Import routes
-const childRoute = require("./routes/childRoute");
-const dangerZoneRoute = require("./routes/dangerZoneRoute");
-const testNotificationRoute = require("./routes/testNotificationRoute");
-
-// Import API key middleware
-const apiKeyMiddleware = require("./middleware/apiKeyMiddleware");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// =============================
+// Firebase Admin Init
+// =============================
+const admin = require("./firebase");
+
+// =============================
 // Middleware
+// =============================
+
+// Enable CORS
 app.use(cors());
-app.use(bodyParser.json());
+
+// Parse JSON bodies (ensure this is before routes)
 app.use(express.json());
 
-// --------------------
-// Initialize Firebase Admin
-// --------------------
-if (!admin.apps.length) {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); // Set in Render env vars
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
-
-// --------------------
-// Secure API routes
-// --------------------
+// Optional API key middleware
+const apiKeyMiddleware = require("./middleware/apiKeyMiddleware");
 app.use(apiKeyMiddleware);
 
-// --------------------
-// MongoDB connection
-// --------------------
-mongoose
-  .connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+// Debug middleware for Render deployment
+app.use((req, res, next) => {
+    console.log(`Incoming request: ${req.method} ${req.url}`);
+    if (req.method === "POST" || req.method === "PUT") {
+        console.log("Headers:", req.headers);
+        let bodyData = '';
+        req.on('data', chunk => bodyData += chunk);
+        req.on('end', () => {
+            console.log("Raw body:", bodyData);
+            next();
+        });
+    } else {
+        next();
+    }
+});
 
-// --------------------
-// API Routes
-// --------------------
+// =============================
+// Route Imports
+// =============================
+const childRoute = require("./routes/childRoute");                  
+const familyRoute = require("./routes/familyRoute");                
+const dangerZoneRoute = require("./routes/dangerZoneRoute");        
+const parentRoute = require("./routes/parentRoute");                
+const checkDangerRoute = require("./routes/checkDangerRoute");      
+
+// =============================
+// Organized Routes
+// =============================
+
+// Child-related routes
 app.use("/api/child", childRoute);
-app.use("/api/dangerzone", dangerZoneRoute);
-app.use("/api/test", testNotificationRoute);
+app.use("/api/child/family", familyRoute);
 
-// Save FCM token endpoint (optional, if you don’t want separate route)
-app.post("/api/parent/save-token", (req, res) => {
-  const { parentId, fcmToken } = req.body;
+// Parent-related routes
+app.use("/api/parent", parentRoute);                 
+app.use("/api/parent/dangerzone", dangerZoneRoute); 
 
-  if (!parentId || !fcmToken)
-    return res.status(400).json({ message: "parentId and fcmToken are required" });
+// Optional route to manually check danger zones
+app.use("/api/parent/dangerzone/check", checkDangerRoute);
 
-  console.log("Received FCM token:", { parentId, fcmToken });
-
-  // TODO: Save token to database
-
-  res.status(200).json({ message: "Token saved successfully" });
+// =============================
+// Error Handling
+// =============================
+app.use((err, req, res, next) => {
+    console.error("Unhandled Error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
 });
 
-// Send test notification endpoint (optional, if you don’t want separate route)
-app.post("/api/test/send-notification", async (req, res) => {
-  const { fcmToken, title, body } = req.body;
-
-  if (!fcmToken)
-    return res.status(400).json({ success: false, message: "FCM token required" });
-
-  const message = {
-    token: fcmToken,
-    notification: {
-      title: title || "Test Notification",
-      body: body || "This is a test notification from backend",
-    },
-  };
-
-  try {
-    const response = await admin.messaging().send(message);
-    console.log("Notification sent:", response);
-    res.json({ success: true, response });
-  } catch (err) {
-    console.error("Error sending notification:", err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// =============================
+// Start Server
+// =============================
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

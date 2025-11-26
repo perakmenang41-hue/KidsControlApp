@@ -1,26 +1,31 @@
-// routes/parentRoute.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Parent = require('../models/Parent');
+const admin = require("../firebase");
 
-// Endpoint to register/save Expo push token
-router.post('/register-token', async (req, res) => {
-    const { parentId, token } = req.body;
-    if (!parentId || !token) return res.status(400).json({ message: 'Invalid payload' });
+// Save FCM token for parent
+router.post("/save-token", async (req, res) => {
+  try {
+    const { parentId, fcmToken } = req.body;
 
-    try {
-        const parent = await Parent.findById(parentId);
-        if (!parent) return res.status(404).json({ message: 'Parent not found' });
-
-        if (!parent.pushTokens.includes(token)) {
-            parent.pushTokens.push(token);
-            await parent.save();
-        }
-
-        res.json({ success: true, pushTokens: parent.pushTokens });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (!parentId || !fcmToken) {
+      return res.status(400).json({ success: false, message: "parentId and fcmToken are required" });
     }
+
+    const parentRef = admin.firestore().collection("Parent_registered").doc(parentId);
+    const parentDoc = await parentRef.get();
+
+    if (!parentDoc.exists) {
+      return res.status(404).json({ success: false, message: "Parent not found" });
+    }
+
+    await parentRef.update({ fcmToken });
+
+    return res.status(200).json({ success: true, message: "FCM token saved successfully" });
+
+  } catch (error) {
+    console.error("Save FCM Token Error:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
 });
 
 module.exports = router;

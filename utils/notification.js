@@ -1,41 +1,38 @@
-// utils/notification.js
-const { Expo } = require('expo-server-sdk');
-let expo = new Expo();
+﻿// utils/notification.js
+const admin = require('../firebase');
 
-const Parent = require('../models/Parent');
+// Send notification to a parent
+async function sendNotification(parentId, title, body) {
+  try {
+    const parentRef = admin.firestore().collection('parents').doc(parentId);
+    const doc = await parentRef.get();
 
-// Fetch parent push tokens from DB
-async function getParentPushTokens(parentId) {
-    const parent = await Parent.findById(parentId);
-    return parent?.pushTokens || [];
-}
-
-// Send push notification to parent devices
-async function sendNotification(parentId, title, body, data = {}) {
-    const tokens = await getParentPushTokens(parentId);
-    if (!tokens || tokens.length === 0) {
-        console.log('No parent push tokens found for', parentId);
-        return;
+    if (!doc.exists) {
+      console.warn(`Parent ${parentId} not found`);
+      return;
     }
 
-    const messages = [];
-    for (const token of tokens) {
-        if (!Expo.isExpoPushToken(token)) {
-            console.warn('Skipping invalid Expo token:', token);
-            continue;
-        }
-        messages.push({ to: token, sound: 'default', title, body, data });
+    const parentData = doc.data();
+    const fcmToken = parentData?.fcmToken;
+
+    if (!fcmToken) {
+      console.warn(`Parent ${parentId} has no FCM token`);
+      return;
     }
 
-    const chunks = expo.chunkPushNotifications(messages);
-    for (const chunk of chunks) {
-        try {
-            const receipts = await expo.sendPushNotificationsAsync(chunk);
-            console.log('Notification receipts:', receipts);
-        } catch (err) {
-            console.error('Error sending push notifications:', err);
-        }
-    }
+    const message = {
+      token: fcmToken,
+      notification: { title, body }
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log("✅ Notification sent:", response);
+    return response;
+
+  } catch (err) {
+    console.error("❌ Error sending notification:", err);
+    throw err;
+  }
 }
 
 module.exports = { sendNotification };

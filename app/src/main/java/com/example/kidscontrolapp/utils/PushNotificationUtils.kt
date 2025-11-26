@@ -19,7 +19,7 @@ fun registerParentPushToken(parentId: String) {
         // Send token to your backend
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val url = URL("http://your_backend_ip:3000/api/parent/save-token")
+                val url = URL("https:///10.0.2.2:5000/api/parent/save-token")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("Content-Type", "application/json")

@@ -1,25 +1,41 @@
 package com.example.kidscontrolapp.service
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
+import android.util.Log
+import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
+
 class MyFirebaseService : FirebaseMessagingService() {
 
+    // Called when a new FCM token is generated
     override fun onNewToken(fcmToken: String) {
         super.onNewToken(fcmToken)
-        // This is where you send the token to your backend
+        Log.d("FCM_TOKEN", "New FCM Token: $fcmToken")
         sendTokenToServer(fcmToken)
     }
 
+    // Send FCM token to your backend
     private fun sendTokenToServer(fcmToken: String) {
-        val json = JSONObject()
-        json.put("parentId", "95CVMGOC") // Replace with actual parent UID
-        json.put("fcmToken", fcmToken)
+        val json = JSONObject().apply {
+            put("parentId", "95CVMGOC") // Replace with actual parent UID
+            put("fcmToken", fcmToken)
+        }
 
-        // Use Retrofit or OkHttp here
-        // Example with OkHttp:
         val client = OkHttpClient()
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val body = json.toString().toRequestBody(mediaType)
         val request = Request.Builder()
-            .url("https://your-server-url/api/parent/save-token") // Use Render URL
+            .url("http://YOUR_LOCAL_OR_RENDER_SERVER/api/parent/save-token") // Replace with your backend URL
             .post(body)
             .build()
 
@@ -32,5 +48,55 @@ class MyFirebaseService : FirebaseMessagingService() {
                 Log.d("FCM_TOKEN", "Token sent successfully: ${response.body?.string()}")
             }
         })
+    }
+
+    // Called when a new FCM message is received
+    override fun onMessageReceived(remoteMessage: RemoteMessage) {
+        super.onMessageReceived(remoteMessage)
+
+        // Log the message for debugging
+        Log.d("FCM_MESSAGE", "Message received: ${remoteMessage.data}")
+
+        // Extract notification data
+        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Danger Zone Alert"
+        val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: "Your child is in or approaching a danger zone!"
+
+        // Log in emulator with extra info if available
+        val parentId = remoteMessage.data["parentId"] ?: "unknown"
+        val zoneName = remoteMessage.data["zoneName"] ?: "unknown zone"
+        Log.d("FCM_NOTIFICATION", "Alert sent to parentId: $parentId for zone: $zoneName")
+
+        // Optional: show Toast for testing in emulator
+        Toast.makeText(this, "$title: $body", Toast.LENGTH_LONG).show()
+
+        // Show a local notification
+        showNotification(title, body)
+    }
+
+    // Helper function to display local notifications
+    private fun showNotification(title: String, body: String) {
+        val channelId = "danger_zone_alerts"
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Create notification channel for Android O+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Danger Zone Alerts",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            manager.createNotificationChannel(channel)
+        }
+
+        // Build and display the notification
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(System.currentTimeMillis().toInt(), notification)
     }
 }

@@ -1,5 +1,6 @@
 package com.example.kidscontrolapp.screens
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,6 +14,12 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import java.net.HttpURLConnection
+import java.net.URL
 
 @Composable
 fun LoginScreen(navController: NavHostController) {
@@ -63,10 +70,34 @@ fun LoginScreen(navController: NavHostController) {
                         .addOnCompleteListener { task ->
                             loading = false
                             if (task.isSuccessful) {
+
                                 Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
+
+                                val parentId = FirebaseAuth.getInstance().currentUser!!.uid
+
+                                // ⭐ Fetch FCM token
+                                FirebaseMessaging.getInstance().token
+                                    .addOnCompleteListener { tokenTask ->
+                                        if (!tokenTask.isSuccessful) {
+                                            Log.w("FCM", "Fetching FCM registration token failed", tokenTask.exception)
+                                            return@addOnCompleteListener
+                                        }
+
+                                        // retrieved token
+                                        val fcmToken = tokenTask.result
+                                        Log.d("FCM_TOKEN", fcmToken)
+
+                                        // ⭐ Save token to backend
+                                        GlobalScope.launch(Dispatchers.IO) {
+                                            saveTokenToBackend(parentId, fcmToken)
+                                        }
+                                    }
+
+                                // Navigate after login
                                 navController.navigate("enter_uid") {
                                     popUpTo("login") { inclusive = true }
                                 }
+
                             } else {
                                 Toast.makeText(context, "Login Failed: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                             }
@@ -88,5 +119,33 @@ fun LoginScreen(navController: NavHostController) {
             Spacer(Modifier.height(16.dp))
             CircularProgressIndicator()
         }
+    }
+}
+
+
+// =====================================
+// Save Token to Backend
+// =====================================
+fun saveTokenToBackend(parentId: String, token: String) {
+    try {
+        val url = URL("https:///10.0.2.2:5000/api/parent/save-token")
+        val connection = url.openConnection() as HttpURLConnection
+        connection.requestMethod = "POST"
+        connection.setRequestProperty("Content-Type", "application/json")
+        connection.doOutput = true
+
+        val jsonBody = """
+        {
+            "parentId": "$parentId",
+            "fcmToken": "$token"
+        }
+        """
+
+        connection.outputStream.write(jsonBody.toByteArray())
+        val code = connection.responseCode
+        Log.d("Backend", "Token Upload Response: $code")
+
+    } catch (e: Exception) {
+        Log.e("BackendError", "Error uploading token: ${e.message}")
     }
 }
