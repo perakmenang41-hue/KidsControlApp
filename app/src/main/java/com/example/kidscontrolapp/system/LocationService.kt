@@ -7,7 +7,7 @@ import android.location.Location
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.kidscontrolapp.utils.FirestoreProvider
 
 class LocationService : Service() {
 
@@ -17,7 +17,7 @@ class LocationService : Service() {
         const val CHANNEL_ID = "location_service_channel"
     }
 
-    private val firestore = FirebaseFirestore.getInstance()
+    private val firestore = FirestoreProvider.getFirestore()
     private var childUID: String = "child1" // or pass dynamically
 
     override fun onBind(intent: Intent?): IBinder? = null

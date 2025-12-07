@@ -1,4 +1,4 @@
-package com.example.kidscontrolapp
+package com.example.kidscontrolapp.activity
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

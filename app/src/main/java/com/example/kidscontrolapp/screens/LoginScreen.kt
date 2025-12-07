@@ -1,6 +1,5 @@
 package com.example.kidscontrolapp.screens
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -11,22 +10,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.messaging.FirebaseMessaging
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import java.net.HttpURLConnection
-import java.net.URL
+import com.example.kidscontrolapp.navigation.Routes
+import com.example.kidscontrolapp.viewmodel.LoginViewModel
 
 @Composable
-fun LoginScreen(navController: NavHostController) {
+fun LoginScreen(
+    navController: NavHostController,
+    viewModel: LoginViewModel = viewModel()
+) {
     val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -35,9 +34,18 @@ fun LoginScreen(navController: NavHostController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Login", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(16.dp))
 
+        Text(
+            text = "Login",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Email Input
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -47,8 +55,9 @@ fun LoginScreen(navController: NavHostController) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
+        // Password Input
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -59,93 +68,52 @@ fun LoginScreen(navController: NavHostController) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
+        // Login Button
         Button(
             onClick = {
-                if (email.isNotBlank() && password.isNotBlank()) {
-                    loading = true
-                    FirebaseAuth.getInstance()
-                        .signInWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            loading = false
-                            if (task.isSuccessful) {
-
-                                Toast.makeText(context, "Login Successful", Toast.LENGTH_SHORT).show()
-
-                                val parentId = FirebaseAuth.getInstance().currentUser!!.uid
-
-                                // ⭐ Fetch FCM token
-                                FirebaseMessaging.getInstance().token
-                                    .addOnCompleteListener { tokenTask ->
-                                        if (!tokenTask.isSuccessful) {
-                                            Log.w("FCM", "Fetching FCM registration token failed", tokenTask.exception)
-                                            return@addOnCompleteListener
-                                        }
-
-                                        // retrieved token
-                                        val fcmToken = tokenTask.result
-                                        Log.d("FCM_TOKEN", fcmToken)
-
-                                        // ⭐ Save token to backend
-                                        GlobalScope.launch(Dispatchers.IO) {
-                                            saveTokenToBackend(parentId, fcmToken)
-                                        }
-                                    }
-
-                                // Navigate after login
-                                navController.navigate("enter_uid") {
-                                    popUpTo("login") { inclusive = true }
-                                }
-
-                            } else {
-                                Toast.makeText(context, "Login Failed: ${task.exception?.message}", Toast.LENGTH_LONG).show()
-                            }
-                        }
-                } else {
+                if (email.isBlank() || password.isBlank()) {
                     Toast.makeText(context, "Enter email & password", Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.login(
+                        email,
+                        password,
+                        onSuccess = {
+                            navController.navigate(Routes.PARENT_CHOICE) {
+                                popUpTo(Routes.LOGIN) { inclusive = true }
+                            }
+                        },
+                        context = context
+                    )
                 }
             },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Sign In") }
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !viewModel.loading.value
+        ) {
+            Text(if (viewModel.loading.value) "Logging in..." else "Sign In")
+        }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        TextButton(onClick = { navController.navigate("signup") }) {
+        // Error message
+        viewModel.errorMessage.value?.let { msg ->
+            Text(
+                text = msg,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Sign up navigation
+        TextButton(onClick = { navController.navigate(Routes.SIGNUP) }) {
             Text("Don't have an account? Sign Up")
         }
 
-        if (loading) {
-            Spacer(Modifier.height(16.dp))
+        // Loading indicator
+        if (viewModel.loading.value) {
+            Spacer(modifier = Modifier.height(16.dp))
             CircularProgressIndicator()
         }
-    }
-}
-
-
-// =====================================
-// Save Token to Backend
-// =====================================
-fun saveTokenToBackend(parentId: String, token: String) {
-    try {
-        val url = URL("https:///10.0.2.2:5000/api/parent/save-token")
-        val connection = url.openConnection() as HttpURLConnection
-        connection.requestMethod = "POST"
-        connection.setRequestProperty("Content-Type", "application/json")
-        connection.doOutput = true
-
-        val jsonBody = """
-        {
-            "parentId": "$parentId",
-            "fcmToken": "$token"
-        }
-        """
-
-        connection.outputStream.write(jsonBody.toByteArray())
-        val code = connection.responseCode
-        Log.d("Backend", "Token Upload Response: $code")
-
-    } catch (e: Exception) {
-        Log.e("BackendError", "Error uploading token: ${e.message}")
     }
 }

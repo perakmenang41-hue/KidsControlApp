@@ -2,8 +2,8 @@ package com.example.kidscontrolapp.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import com.example.kidscontrolapp.navigation.Routes
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email

@@ -1,0 +1,40 @@
+{
+  "info": {
+    "name": "Kids Control App",
+    "_postman_id": "abcd1234-5678-efgh-ijkl-9876543210",
+    "description": "Collection for testing KidsControlApp backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Update Child Location",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer supersecretapikey",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"parentId\": \"95CVMGOC\",\n    \"childUID\": \"tdroo9vp\",\n    \"lat\": 3.123456,\n    \"lon\": 101.654321\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/child/family/update-location",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "child", "family", "update-location"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

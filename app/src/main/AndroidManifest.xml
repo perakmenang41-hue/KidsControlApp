@@ -41,8 +41,9 @@
             </intent-filter>
         </activity>
 
+
         <activity
-            android:name=".DashboardActivity"
+            android:name=".activity.DashboardActivity"
             android:exported="true" />
 
         <activity
@@ -63,6 +64,13 @@
             android:name=".system.LocationService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <service
+        android:name=".service.DangerZoneService"
+        android:exported="false"
+        android:foregroundServiceType="location" />
+
+
 
         <service
             android:name=".service.MyFirebaseService"

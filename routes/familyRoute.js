@@ -1,164 +1,163 @@
 ﻿const express = require("express");
 const router = express.Router();
-const admin = require("../firebase"); // Firebase Admin SDK
+const admin = require("../firebase");
+const calculateRisk = require("../aiRiskEngine");
+const { getDistance } = require("../utils/geolocation");
+const { sendNotification, logNotification } = require("../utils/notification");
+
+const db = admin.firestore();
 
 // ===============================
-// Haversine Distance Calculator
+// Format milliseconds to DD:HH:MM:SS
 // ===============================
-function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) *
-      Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) ** 2;
-
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+function formatDuration(ms) {
+    let s = Math.floor(ms / 1000);
+    const d = Math.floor(s / 86400); s %= 86400;
+    const h = Math.floor(s / 3600); s %= 3600;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${d.toString().padStart(2,"0")}:${h.toString().padStart(2,"0")}:${m.toString().padStart(2,"0")}:${sec.toString().padStart(2,"0")}`;
 }
 
 // ===============================
-// Push Notification Helper
-// ===============================
-async function sendNotification(parentId, title, body) {
-  try {
-    const parentRef = admin.firestore()
-      .collection("Parent_registered")
-      .doc(parentId);
-
-    const parentDoc = await parentRef.get();
-    if (!parentDoc.exists) return;
-
-    const fcmToken = parentDoc.data()?.fcmToken;
-    if (!fcmToken) return;
-
-    await admin.messaging().send({
-      token: fcmToken,
-      notification: { title, body },
-    });
-
-  } catch (error) {
-    console.error("Notification error:", error);
-  }
-}
-
-// ===============================
-// UPDATE CHILD LOCATION
+// Update Child Location + AI Alert
 // ===============================
 router.post("/update-location", async (req, res) => {
-  try {
     const { parentId, childUID, lat, lon } = req.body;
 
     if (!parentId || !childUID || typeof lat !== "number" || typeof lon !== "number") {
-      return res.status(400).json({ success: false, message: "Invalid payload" });
+        return res.status(400).json({ success: false, message: "Invalid payload" });
     }
 
-    // -------------------------------
-    // 1. Check parent exists
-    // -------------------------------
-    const parentRef = admin.firestore().collection("Parent_registered").doc(parentId);
-    const parentDoc = await parentRef.get();
-    if (!parentDoc.exists) {
-      return res.status(404).json({ success: false, message: "Parent not found" });
-    }
+    console.log("📍 Incoming:", req.body);
 
-    // -------------------------------
-    // 2. Get child data
-    // -------------------------------
-    const childRef = admin.firestore().collection("registered_users").doc(childUID);
-    const childDoc = await childRef.get();
-    if (!childDoc.exists) {
-      return res.status(404).json({ success: false, message: "Child not found in registered_users" });
-    }
-    const childData = childDoc.data();
-    const { name, age } = childData;
+    res.json({
+        success: true,
+        message: "Location received, processing in background"
+    });
 
-    // -------------------------------
-    // 3. Get last alerted zones
-    // -------------------------------
-    const childLocationRef = admin.firestore().collection("child_locations").doc(childUID);
-    const childLocationDoc = await childLocationRef.get();
-    const lastAlertedZones = childLocationDoc.exists
-      ? childLocationDoc.data()?.lastAlertedZones || []
-      : [];
+    (async () => {
+        try {
+            const now = Date.now();
 
-    // -------------------------------
-    // 4. Get parent danger zones
-    // -------------------------------
-    const dangerZonesSnap = await parentRef.collection("dangerZones").get();
-    const dangerZonesArray = [];
-    const warningDistance = 50; // meters
+            // 1️⃣ Calculate Speed
+            const lastRef = db.collection("child_locations").doc(childUID);
+            const lastDoc = await lastRef.get();
+            let speedMS = 0;
 
-    const newAlertedZones = [...lastAlertedZones]; // copy previous alerts
+            if (lastDoc.exists) {
+                const last = lastDoc.data();
+                const dt = Math.max(1, (now - last.timestamp) / 1000);
+                speedMS = getDistance(last.lat, last.lon, lat, lon) / dt;
+            }
 
-    for (const zoneDoc of dangerZonesSnap.docs) {
-      const zone = zoneDoc.data() || {};
-      const zoneId = zone.zoneId || zoneDoc.id;
-      const zoneName = zone.name || "Unknown Zone";
-      const D_lat = zone.lat ?? 0;
-      const D_lon = zone.lon ?? 0;
-      const radius = zone.radius ?? 0;
+            await lastRef.set({ lat, lon, timestamp: now }, { merge: true });
 
-      dangerZonesArray.push({ zoneId, name: zoneName, D_lat, D_lon, radius });
+            // 2️⃣ Get previous child states
+            const childRef = db.collection("child_position").doc(childUID);
+            const childDoc = await childRef.get();
+            const prevZones = childDoc.exists ? childDoc.data()?.zoneStates || {} : {};
+            const lastAlerts = childDoc.exists ? childDoc.data()?.lastAlertTimes || {} : {};
+            const timeInZoneRaw = childDoc.exists ? childDoc.data()?.timeInZoneRaw || {} : {};
+            const newStates = {};
+            const newAlertTimes = { ...lastAlerts };
 
-      // Skip if this child already alerted for this zone
-      if (lastAlertedZones.includes(zoneId)) continue;
+            // 3️⃣ Zones
+            const zonesSnap = await db.collection("Parent_registered")
+                .doc(parentId)
+                .collection("dangerZones")
+                .get();
 
-      // Calculate distance
-      if (typeof D_lat === "number" && typeof D_lon === "number" && typeof radius === "number") {
-        const distance = getDistance(lat, lon, D_lat, D_lon);
+            const WARNING = 50;
+            const COOLDOWN = 10 * 60 * 1000; // 10 minutes
 
-        if (distance <= radius) {
-          await sendNotification(parentId, "⚠️ Danger Zone Alert!", `Your child is inside ${zoneName}`);
-          newAlertedZones.push(zoneId);
-        } else if (distance <= radius + warningDistance) {
-          await sendNotification(parentId, "⚠️ Approaching Danger Zone", `Your child is approaching ${zoneName}`);
-          newAlertedZones.push(zoneId);
+            for (const zoneDoc of zonesSnap.docs) {
+                const zone = zoneDoc.data();
+                const zoneId = zone.zoneId || zoneDoc.id;
+                if (!timeInZoneRaw[zoneId]) timeInZoneRaw[zoneId] = 0;
+
+                const distance = getDistance(lat, lon, zone.lat, zone.lon);
+                const { risk, level, reasons } = calculateRisk({
+                    speed: speedMS,
+                    hour: new Date().getHours(),
+                    distance,
+                    radius: zone.radius,
+                    timeInZone: timeInZoneRaw[zoneId]
+                });
+
+                // Determine current state
+                let state = "OUTSIDE";
+                if (distance <= zone.radius) state = "INSIDE";
+                else if (distance <= zone.radius + WARNING) state = "APPROACHING";
+                else if (prevZones[zoneId] === "INSIDE") state = "EXITED";
+
+                // ✅ Log prev/current for debugging
+                console.log(`🟢 Child ${childUID} | Zone ${zone.name} | Prev: ${prevZones[zoneId] || "NONE"} | Current: ${state}`);
+
+                if (state === "INSIDE") {
+                    timeInZoneRaw[zoneId] += now - (childDoc.data()?.lastUpdatedRaw || now);
+                }
+
+                const canAlert =
+                    risk >= 70 ||
+                    now - (lastAlerts[zoneId] || 0) > COOLDOWN ||
+                    state !== prevZones[zoneId];
+
+                if (canAlert && state !== "OUTSIDE") {
+                    const type = risk >= 70 ? "AI_ALERT" : state;
+
+                    await sendNotification(
+                        parentId,
+                        "⚠️ Child Safety Alert",
+                        `Child ${type} at ${zone.name}`
+                    );
+
+                    await logNotification({
+                        parentId,
+                        childUID,
+                        zoneId,
+                        type,
+                        level,
+                        riskScore: risk,
+                        reasons: reasons.join(", "),
+                        durationInZone: formatDuration(timeInZoneRaw[zoneId]),
+                        zoneLat: zone.lat,
+                        zoneLon: zone.lon,
+                        childLat: lat,
+                        childLon: lon,
+                        readStatus: false
+                    });
+
+                    newAlertTimes[zoneId] = now;
+                }
+
+                newStates[zoneId] = state;
+            }
+
+            // Save in Firestore with formatted durations
+            const timeInZoneFormatted = {};
+            for (const zoneId in timeInZoneRaw) {
+                timeInZoneFormatted[zoneId] = formatDuration(timeInZoneRaw[zoneId]);
+            }
+
+            await childRef.set({
+           		parentId,
+                lat,
+                lon,
+                speedMS,
+                speedUnit: "m/s",
+                lastUpdated: formatDuration(now),
+                lastUpdatedRaw: now,
+                zoneStates: newStates,
+                lastAlertTimes: newAlertTimes,
+                timeInZone: timeInZoneFormatted,
+                timeInZoneRaw
+            }, { merge: true });
+
+        } catch (err) {
+            console.error("❌ Background error:", err);
         }
-      }
-    }
-
-    // -------------------------------
-    // 5. Update family collection
-    // -------------------------------
-    await admin.firestore().collection("family").doc(childUID).set({
-      parentId,
-      name,
-      age,
-      lat,
-      lon,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      dangerZones: dangerZonesArray
-    }, { merge: true });
-
-    // -------------------------------
-    // 6. Update child location and lastAlertedZones
-    // -------------------------------
-    await childLocationRef.set({
-      lat,
-      lon,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      lastAlertedZones: newAlertedZones
-    }, { merge: true });
-
-    // -------------------------------
-    // 7. Success response
-    // -------------------------------
-    return res.status(200).json({
-      success: true,
-      message: "Child location updated successfully with alerts tracked"
-    });
-
-  } catch (error) {
-    console.error("Update-Location Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message
-    });
-  }
+    })();
 });
 
 module.exports = router;

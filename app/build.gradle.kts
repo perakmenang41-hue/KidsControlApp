@@ -32,6 +32,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 
@@ -73,13 +74,31 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Firebase (all versions managed by BOM)
-    implementation(platform("com.google.firebase:firebase-bom:32.3.1"))
+    // Firebase BOM (manages versions of all Firebase libraries)
+    implementation(platform("com.google.firebase:firebase-bom:32.2.0"))
+
+    // Firebase Core + Analytics
     implementation("com.google.firebase:firebase-analytics-ktx")
+
+    // Firebase Auth
     implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-database-ktx")
+
+    // Firebase Messaging
     implementation("com.google.firebase:firebase-messaging-ktx")
+
+    // Firebase Firestore
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+    // Firebase Realtime Database
+    implementation("com.google.firebase:firebase-database-ktx")
+
+    // Retrofit + Networking
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.11")
+
+    implementation ("androidx.compose.material:material-icons-extended:1.5.0")
 
     // Play Services Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
@@ -92,17 +111,21 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("com.github.yalantis:ucrop:2.2.8")
 
-    // Retrofit + Networking
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.10.0")
-
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Preferences
     implementation("androidx.preference:preference-ktx:1.2.1")
+    implementation ("androidx.datastore:datastore-preferences:1.1.0")
+    implementation ("androidx.datastore:datastore-core:1.1.0")
+    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation ("com.google.firebase:firebase-firestore-ktx:24.2.0")
+    implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation ("androidx.compose.material3:material3:1.1.1")
+
+
+
 
     // Accompanist Permissions
     implementation("com.google.accompanist:accompanist-permissions:0.31.5-beta")

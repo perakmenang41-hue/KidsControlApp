@@ -6,41 +6,44 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kidscontrolapp.viewmodel.ChildLocationViewModel
 
 @Composable
-fun ChildZoneAlertsScreen(
+fun ChildZoneAlertScreen(
     childUID: String,
     viewModel: ChildLocationViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    val lastAlert by viewModel.lastAlert
-    val zoneStates by viewModel.zoneStates
-    val timeInZone by viewModel.timeInZone
-
-    // Start Firestore listener when Composable is active
-    LaunchedEffect(childUID) {
+    // Start listening when Composable is shown
+    DisposableEffect(childUID) {
         viewModel.startListening(childUID)
-        onDispose { viewModel.stopListening() }
+        onDispose {
+            viewModel.stopListening()
+        }
     }
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(16.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
     ) {
         Text("Child Zone Alerts", style = MaterialTheme.typography.headlineSmall)
         Spacer(modifier = Modifier.height(8.dp))
 
-        lastAlert?.let { alert ->
+        // Show real-time alerts
+        viewModel.lastAlert.value?.let { alert ->
             Text(alert, color = androidx.compose.ui.graphics.Color.Red)
             Toast.makeText(context, alert, Toast.LENGTH_SHORT).show()
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        zoneStates.forEach { (zoneId, state) ->
-            val duration = timeInZone[zoneId] ?: "00:00:00:00"
+        // Show zone states and durations
+        viewModel.zoneStates.value.forEach { (zoneId, state) ->
+            val duration = viewModel.timeInZone.value[zoneId] ?: "00:00:00:00"
             Text("Zone $zoneId: $state | Time: $duration")
         }
     }

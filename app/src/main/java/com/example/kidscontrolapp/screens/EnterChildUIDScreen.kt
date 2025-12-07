@@ -8,77 +8,166 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.kidscontrolapp.data.DataStoreHelper
+import com.example.kidscontrolapp.utils.FirestoreProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.*
 
 @Composable
 fun EnterChildUIDScreen(navController: NavController) {
-    val context = LocalContext.current // Get current context for Toast and other Android operations
-    var childUID by remember { mutableStateOf("") } // Holds the UID entered by the parent
-    var isChecking by remember { mutableStateOf(false) } // Flag to prevent multiple checks at once
+    val context = LocalContext.current
+    var childUID by remember { mutableStateOf("") }
+    var isChecking by remember { mutableStateOf(false) }
 
-    val firestore = FirebaseFirestore.getInstance() // Firebase Firestore instance
+    val firestore = FirestoreProvider.getFirestore()
+    val scope = rememberCoroutineScope()
+
+    // ✅ State to track logged-in parentId
+    val parentIdState = remember { mutableStateOf<String?>(null) }
+
+    // Load parentId from DataStore
+    LaunchedEffect(Unit) {
+        DataStoreHelper.getParentId(context).collect { id ->
+            parentIdState.value = id
+        }
+    }
+
+    val parentId = parentIdState.value
+    val isParentLoading = parentId == null
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp) // Padding around the screen
+            .padding(16.dp)
     ) {
-        // Screen title
         Text("Enter Child UID", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp)) // Space between title and input
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Text input for parent to enter the child's UID
         OutlinedTextField(
-            value = childUID, // Current value
-            onValueChange = { childUID = it }, // Update state when user types
-            label = { Text("Child UID") }, // Label shown above input
+            value = childUID,
+            onValueChange = { childUID = it },
+            label = { Text("Child UID") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(16.dp)) // Space before button
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Start Tracking button
+        // ⚠ Show loading if parentId is still being retrieved
+        if (isParentLoading) {
+            Text("Loading parent info...")
+            Spacer(modifier = Modifier.height(8.dp))
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Button(
             onClick = {
-                // Check if the input field is empty
                 if (childUID.isBlank()) {
                     Toast.makeText(context, "Please enter a UID", Toast.LENGTH_SHORT).show()
-                    return@Button // Stop execution
+                    return@Button
                 }
 
-                isChecking = true // Disable button while checking Firestore
+                if (parentId.isNullOrBlank()) {
+                    Toast.makeText(context, "Parent not logged in yet, wait a moment...", Toast.LENGTH_SHORT).show()
+                    return@Button
+                }
 
-                // Query Firestore collection "registered_users" for the entered UID in uniqueId field
-                firestore.collection("registered_users")
-                    .whereEqualTo("uniqueId", childUID) // Query by uniqueId field
-                    .get()
-                    .addOnSuccessListener { result ->
-                        isChecking = false // Re-enable button
-                        if (!result.isEmpty) {
-                            // UID exists → valid
-                            Toast.makeText(context, "UID is valid! Opening Dashboard...", Toast.LENGTH_SHORT).show()
+                isChecking = true
 
-                            // Safely encode the UID to avoid navigation crashes
-                            val safeUID = java.net.URLEncoder.encode(childUID, "UTF-8")
-                            navController.navigate("dashboard/$safeUID")
-                        } else {
-                            // UID does not exist → invalid
-                            Toast.makeText(context, "Invalid UID. Please check.", Toast.LENGTH_SHORT).show()
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val uidToCheck = childUID.trim()
+
+                        // 1️⃣ Check if child exists
+                        val childQuery = firestore.collection("registered_users")
+                            .whereEqualTo("uniqueId", uidToCheck)
+                            .get()
+                            .await()
+
+                        if (childQuery.isEmpty) {
+                            launch(Dispatchers.Main) {
+                                isChecking = false
+                                Toast.makeText(context, "Invalid Child UID", Toast.LENGTH_SHORT).show()
+                            }
+                            return@launch
+                        }
+
+                        val childDoc = childQuery.documents[0]
+                        val childId = childDoc.id
+                        val childName = childDoc.getString("name") ?: "Unknown"
+
+                        // 2️⃣ Check if already linked to THIS parent
+                        val existingFamily = firestore.collection("family")
+                            .document(childId)
+                            .collection("members")
+                            .document(parentId!!)
+                            .get()
+                            .await()
+
+                        if (existingFamily.exists()) {
+                            launch(Dispatchers.Main) {
+                                isChecking = false
+                                Toast.makeText(context, "Child already linked! Opening dashboard...", Toast.LENGTH_SHORT).show()
+                                // ✅ Pass both childUID and parentId
+                                navController.navigate("dashboard/$childId/$parentId")
+                            }
+                            return@launch
+                        }
+
+                        // 3️⃣ Check if linked to ANY OTHER parent
+                        val otherFamily = firestore.collectionGroup("members")
+                            .whereEqualTo("childId", childId)
+                            .whereNotEqualTo("parentId", parentId!!)
+                            .get()
+                            .await()
+
+                        if (!otherFamily.isEmpty) {
+                            launch(Dispatchers.Main) {
+                                isChecking = false
+                                Toast.makeText(context, "Child is already linked to another parent.", Toast.LENGTH_LONG).show()
+                            }
+                            return@launch
+                        }
+
+                        // 4️⃣ Add child under this parent
+                        firestore.collection("family")
+                            .document(childId)
+                            .collection("members")
+                            .document(parentId!!)
+                            .set(
+                                mapOf(
+                                    "parentId" to parentId,
+                                    "childId" to childId,
+                                    "childUID" to uidToCheck,
+                                    "name" to childName,
+                                    "createdAt" to Date()
+                                )
+                            )
+                            .await()
+
+                        launch(Dispatchers.Main) {
+                            isChecking = false
+                            Toast.makeText(context, "Child linked successfully!", Toast.LENGTH_SHORT).show()
+                            // ✅ Pass both childUID and parentId
+                            navController.navigate("dashboard/$childId/$parentId")
+                        }
+
+                    } catch (e: Exception) {
+                        launch(Dispatchers.Main) {
+                            isChecking = false
+                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                         }
                     }
-                    .addOnFailureListener { e ->
-                        isChecking = false // Re-enable button
-                        Toast.makeText(context, "Error checking UID: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-
-
+                }
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isChecking // Disable button if a check is in progress
+            enabled = !isChecking && !isParentLoading
         ) {
-            // Change button text based on checking state
-            Text(if (isChecking) "Checking..." else "Start Tracking")
+            Text(if (isChecking || isParentLoading) "Checking..." else "Add Child")
         }
     }
 }
