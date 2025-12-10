@@ -1,4 +1,4 @@
-﻿// routes/update-location.js  (replace contents of your existing file)
+﻿// routes/familyRoute.js
 const express = require("express");
 const router = express.Router();
 const admin = require("../firebase");
@@ -28,6 +28,20 @@ router.post("/update-location", async (req, res) => {
 
     if (!parentId || !childUID || typeof lat !== "number" || typeof lon !== "number") {
         return res.status(400).json({ success: false, message: "Invalid payload" });
+    }
+
+    // -------------------------
+    // Ignore Google default fallback coordinates
+    // -------------------------
+    const DEFAULT_LAT = 37.4219983;
+    const DEFAULT_LON = -122.084;
+
+    if (lat === DEFAULT_LAT && lon === DEFAULT_LON) {
+        console.warn(`⚠️ Ignoring default fallback coordinates for child ${childUID}`);
+        return res.json({
+            success: false,
+            message: "Default coordinates ignored"
+        });
     }
 
     console.log("📍 Incoming:", req.body);
@@ -82,10 +96,10 @@ router.post("/update-location", async (req, res) => {
                 .get();
 
             // thresholds & config
-            const APPROACH_BUFFER = 20;            // meters (your choice)
+            const APPROACH_BUFFER = 20;            // meters
             const PROLONGED_MS = 5 * 60 * 1000;   // 5 minutes
             const EXIT_CONFIRM_MS = 3 * 1000;     // 3 seconds to confirm exit (debounce)
-            const WARNING = 50;                   // notification proximity buffer (unchanged)
+            const WARNING = 50;                   // notification proximity buffer
             const COOLDOWN = 10 * 60 * 1000;      // 10 minutes alert cooldown
 
             const newStates = {};
@@ -108,7 +122,6 @@ router.post("/update-location", async (req, res) => {
                 const zoneId = zone.zoneId || zoneDoc.id;
                 if (!timeInZoneRaw[zoneId]) timeInZoneRaw[zoneId] = 0;
 
-                // Validate zone fields
                 const zoneLat = zone.lat;
                 const zoneLon = zone.lon;
                 const radius = zone.radius;
@@ -129,63 +142,48 @@ router.post("/update-location", async (req, res) => {
                 });
 
                 // Determine state with robust ordering and exit confirmation
-                // Default to previous state so we don't flip-flop unnecessarily
                 const prevState = prevZones[zoneId] || "OUTSIDE";
                 let state = prevState;
 
-                // 1) INSIDE
                 if (distance <= radius) {
                     state = "INSIDE";
-                    // clear any exit candidate
                     if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
-                }
-                // 2) APPROACHING
-                else if (distance <= radius + APPROACH_BUFFER) {
+                } else if (distance <= radius + APPROACH_BUFFER) {
                     state = "APPROACHING";
                     if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
-                }
-                // 3) Candidate EXIT: previously INSIDE but now outside approach buffer
-                else if (prevState === "INSIDE" || prevState === "PROLONGED") {
+                } else if (prevState === "INSIDE" || prevState === "PROLONGED") {
                     const candidateTs = exitCandidates[zoneId] || now;
                     if (!exitCandidates[zoneId]) {
-                        // mark candidate, don't change state yet (avoid immediate EXIT)
                         exitCandidates[zoneId] = candidateTs;
-                        state = prevState; // keep previous until confirmed
+                        state = prevState;
                     } else {
-                        // confirm exit only after EXIT_CONFIRM_MS elapsed
                         if (now - candidateTs >= EXIT_CONFIRM_MS) {
                             state = "EXITED";
                             delete exitCandidates[zoneId];
                         } else {
-                            // within confirmation window: keep previous state
                             state = prevState;
                         }
                     }
-                }
-                // 4) OUTSIDE (default)
-                else {
+                } else {
                     state = "OUTSIDE";
                     if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
                 }
 
-                // Accumulate timeInZoneRaw correctly:
-                // If previously INSIDE (or PROLONGED), they were inside during the last interval
+                // Accumulate timeInZoneRaw
                 if (prevState === "INSIDE" || prevState === "PROLONGED") {
                     timeInZoneRaw[zoneId] = (timeInZoneRaw[zoneId] || 0) + deltaSinceLast;
                 }
 
-                // If new state becomes INSIDE and prev wasn't, we start counting on next cycles (we don't add retro delta)
                 // Determine PROLONGED
                 if ((state === "INSIDE" || state === "PROLONGED") && (timeInZoneRaw[zoneId] >= PROLONGED_MS)) {
                     state = "PROLONGED";
                 }
 
-                // Log for debugging
                 console.log(`Zone ${zoneId} (${zone.name}) dist=${Math.round(distance)}m r=${radius} prev=${prevState} -> new=${state} timeInZoneMs=${timeInZoneRaw[zoneId]}`);
 
-                // Decide whether to alert
+                // Alert
                 const shouldAlert =
-                    risk >= 70 || // high AI risk
+                    risk >= 70 ||
                     now - (lastAlerts[zoneId] || 0) > COOLDOWN ||
                     state !== prevState;
 
@@ -218,7 +216,7 @@ router.post("/update-location", async (req, res) => {
                 }
 
                 newStates[zoneId] = state;
-            } // end zones loop
+            }
 
             // -------------------------
             // 5️⃣ Persist results
