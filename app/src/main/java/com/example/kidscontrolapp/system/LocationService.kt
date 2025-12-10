@@ -6,8 +6,10 @@ import android.content.Intent
 import android.location.Location
 import android.os.Build
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
-import com.example.kidscontrolapp.utils.FirestoreProvider
+import com.example.kidscontrolapp.viewmodel.ChildLocationViewModel
+import com.google.android.gms.location.*
 
 class LocationService : Service() {
 
@@ -17,34 +19,94 @@ class LocationService : Service() {
         const val CHANNEL_ID = "location_service_channel"
     }
 
-    private val firestore = FirestoreProvider.getFirestore()
-    private var childUID: String = "child1" // or pass dynamically
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationRequest: LocationRequest
+    private lateinit var locationCallback: LocationCallback
+
+    // 🔥 Now dynamic (received from Intent)
+    private var parentId: String = ""
+    private var childUid: String = ""
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_START -> startForegroundService()
-            ACTION_STOP -> stopForegroundService()
+
+        if (intent?.action == ACTION_START) {
+
+            // Receive dynamic parentId + childUid
+            parentId = intent.getStringExtra("parentId") ?: ""
+            childUid = intent.getStringExtra("childUid") ?: ""
+
+            startForegroundService()
         }
+
+        if (intent?.action == ACTION_STOP) {
+            stopForegroundService()
+        }
+
         return START_STICKY
     }
 
     private fun startForegroundService() {
         createNotificationChannel()
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Child Tracking Service")
-            .setContentText("Tracking child location in background")
+            .setContentText("Tracking child in background")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
 
         startForeground(1, notification)
 
-        // TODO: implement location updates here
-        // Example: periodically push location to Firestore
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            5000L
+        ).setMinUpdateDistanceMeters(1f).build()
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                for (loc in result.locations) {
+                    sendLocation(loc)
+                }
+            }
+        }
+
+        startLocationUpdates()
+    }
+
+    private fun startLocationUpdates() {
+        try {
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+    }
+
+    private val childLocationViewModel = ChildLocationViewModel()
+
+    private fun sendLocation(location: Location, battery: Int = 100) {
+
+        if (parentId.isBlank() || childUid.isBlank()) return
+
+        childLocationViewModel.sendChildLocationUpdate(
+            context = this,
+            parentId = parentId,
+            childUID = childUid,
+            lat = location.latitude,
+            lon = location.longitude,
+            battery = battery,
+            speed = location.speed
+        )
     }
 
     private fun stopForegroundService() {
+        fusedLocationClient.removeLocationUpdates(locationCallback)
         stopForeground(true)
         stopSelf()
     }
@@ -56,9 +118,8 @@ class LocationService : Service() {
                 "Location Service Channel",
                 NotificationManager.IMPORTANCE_LOW
             )
-            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.createNotificationChannel(channel)
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+                .createNotificationChannel(channel)
         }
     }
-
 }

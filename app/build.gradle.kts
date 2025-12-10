@@ -32,8 +32,8 @@ android {
     }
 
     buildFeatures {
-        buildConfig = true
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -57,57 +57,54 @@ android {
 }
 
 dependencies {
-    // Core Kotlin + Android
+    // Core
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.10.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
+    // Compose BOM (🔥 updated)
+    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
+
     // Compose
-    implementation(platform("androidx.compose:compose-bom:2023.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3:1.3.1")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation("androidx.navigation:navigation-compose:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose")
+
+    // Material 3 (only 1 version, removed duplicates)
+    implementation("androidx.compose.material3:material3")
+
+    // Debug Compose Tools
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    // Firebase BOM (manages versions of all Firebase libraries)
+    // Material Icons
+    implementation("androidx.compose.material:material-icons-extended:1.5.0")
+
+    // Firebase BOM
     implementation(platform("com.google.firebase:firebase-bom:32.2.0"))
-
-    // Firebase Core + Analytics
     implementation("com.google.firebase:firebase-analytics-ktx")
-
-    // Firebase Auth
     implementation("com.google.firebase:firebase-auth-ktx")
-
-    // Firebase Messaging
     implementation("com.google.firebase:firebase-messaging-ktx")
-
-    // Firebase Firestore
     implementation("com.google.firebase:firebase-firestore-ktx")
-
-    // Firebase Realtime Database
     implementation("com.google.firebase:firebase-database-ktx")
 
-    // Retrofit + Networking
+    // Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("com.squareup.okhttp3:logging-interceptor:5.0.0-alpha.11")
 
-    implementation ("androidx.compose.material:material-icons-extended:1.5.0")
-
-    // Play Services Location
+    // Location
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // OSMDroid (Map)
+    // OSMDroid
     implementation("org.osmdroid:osmdroid-android:6.1.16")
     implementation("org.osmdroid:osmdroid-wms:6.1.16")
 
-    // Image Loading + Cropping
+    // Image Loading
     implementation("io.coil-kt:coil-compose:2.4.0")
     implementation("com.github.yalantis:ucrop:2.2.8")
 
@@ -115,19 +112,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
-    // Preferences
+    // Preferences + Datastore
     implementation("androidx.preference:preference-ktx:1.2.1")
-    implementation ("androidx.datastore:datastore-preferences:1.1.0")
-    implementation ("androidx.datastore:datastore-core:1.1.0")
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-    implementation ("com.google.firebase:firebase-firestore-ktx:24.2.0")
-    implementation ("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
-    implementation ("androidx.compose.material3:material3:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.0")
+    implementation("androidx.datastore:datastore-core:1.1.0")
 
-
-
-
-    // Accompanist Permissions
+    // Accompanist
     implementation("com.google.accompanist:accompanist-permissions:0.31.5-beta")
 
     // Testing

@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.example.kidscontrolapp.tracking.LocationTracker
+import com.example.kidscontrolapp.network.ApiService
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,75 +100,123 @@ fun LocationPermissionRequester(onPermissionsGranted: () -> Unit) {
         )
     }
 }
+
 // ==========================
 // TrackingContentSafe
+// (UI: DOES NOT show map until trackingStarted==true)
 // ==========================
 @Composable
 fun TrackingContentSafe(
-    parentId: String = "",
-    childUID: String = "",
+    parentId: String,
+    childUID: String,
     trackingStarted: Boolean = false,
     dangerZoneViewModel: DangerZoneViewModel = viewModel(),
     childLocationViewModel: ChildLocationViewModel = viewModel()
 ) {
-    val firestore = FirestoreProvider.getFirestore()
     val context = LocalContext.current
+    val firestore = FirestoreProvider.getFirestore()
 
     var currentLocation by remember { mutableStateOf<Location?>(null) }
     val locationHistory = remember { mutableStateListOf<LocationLog>() }
     var batteryLevel by remember { mutableStateOf(0.0) }
     var status by remember { mutableStateOf("offline") }
+    var listener: ListenerRegistration? by remember { mutableStateOf(null) }
 
     val dangerZones by remember { derivedStateOf { dangerZoneViewModel.dangerZones.toList() } }
 
-    // Timer for periodic Firestore polling
-    LaunchedEffect(childUID) {
-        while (true) {
+    // Store last valid child location so map doesn't jump
+    val lastValidCameraPosition = remember { mutableStateOf<Location?>(null) }
+
+    // Helper to detect invalid / emulator default location
+    fun Location.isValid(): Boolean {
+        return !(latitude == 0.0 && longitude == 0.0) &&
+                !(latitude == 37.4219983 && longitude == -122.084)
+    }
+
+    // Attach Firestore listener only when tracking started
+    LaunchedEffect(trackingStarted, childUID) {
+        listener?.remove()
+        listener = null
+
+        if (trackingStarted) {
             try {
-                val snapshot = firestore.collection("child_position")
+                listener = firestore.collection("child_position")
                     .document(childUID)
-                    .get()
-                    .await()
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            Log.e("TrackingContentSafe", "Listener error: ${error.message}")
+                            return@addSnapshotListener
+                        }
+                        if (snapshot != null && snapshot.exists()) {
+                            val lat = snapshot.getDouble("lat")
+                            val lon = snapshot.getDouble("lon")
+                            val batt = snapshot.getDouble("battery") ?: 0.0
+                            val childStatus = snapshot.getString("status") ?: "offline"
 
-                if (snapshot.exists()) {
-                    val lat = snapshot.getDouble("lat")
-                    val lon = snapshot.getDouble("lon")
-                    val battery = snapshot.getDouble("battery") ?: 0.0
-                    val childStatus = snapshot.getString("status") ?: "offline"
+                            if (lat != null && lon != null) {
+                                val loc = Location("").apply { latitude = lat; longitude = lon }
+                                if (loc.isValid()) {
+                                    currentLocation = loc
+                                    lastValidCameraPosition.value = loc
+                                    locationHistory.add(LocationLog(lat, lon, batt))
+                                } else {
+                                    Log.w("TrackingContentSafe", "Ignored invalid location: $lat, $lon")
+                                }
+                            }
 
-                    if (lat != null && lon != null) {
-                        val loc = Location("").apply { latitude = lat; longitude = lon }
-                        currentLocation = loc
-                        locationHistory.add(LocationLog(lat, lon, battery))
+                            batteryLevel = batt
+                            status = childStatus
+                        }
                     }
-
-                    batteryLevel = battery
-                    status = childStatus
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(context, "Error fetching location: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Error listening location: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-
-            // Wait 5 seconds before next fetch
-            kotlinx.coroutines.delay(5000)
+        } else {
+            // Stop tracking: clear UI
+            currentLocation = null
+            locationHistory.clear()
+            batteryLevel = 0.0
+            status = "offline"
+            lastValidCameraPosition.value = null
         }
     }
 
+    // Clean up listener
+    DisposableEffect(Unit) {
+        onDispose {
+            listener?.remove()
+            listener = null
+        }
+    }
+
+    // ------------------------
+    // UI
+    // ------------------------
     Box(modifier = Modifier.fillMaxSize()) {
-        currentLocation?.let { loc ->
+        if (trackingStarted && lastValidCameraPosition.value != null) {
             DashboardMapView(
-                current = loc,
+                current = lastValidCameraPosition.value!!,
                 history = locationHistory.toList(),
                 storeMarkers = emptyList(),
                 childUID = childUID,
                 dangerZoneViewModel = dangerZoneViewModel
             )
-        } ?: Text(
-            "Waiting for location…",
-            modifier = Modifier.align(Alignment.Center)
-        )
+        } else {
+            // Placeholder while waiting for first valid child location
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.02f)),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(Icons.Default.LocationOff, contentDescription = null, modifier = Modifier.size(48.dp))
+                Text("Tracking is off or waiting for child location.", modifier = Modifier.padding(8.dp))
+            }
+        }
 
+        // Status overlay
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -182,6 +232,48 @@ fun TrackingContentSafe(
 
 
 
+
+@Composable
+fun DashboardAutoTrackingScreen(
+    navController: NavHostController,
+    dangerZoneViewModel: DangerZoneViewModel = viewModel(),
+    childLocationViewModel: ChildLocationViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    var parentId by remember { mutableStateOf<String?>(null) }
+    var childUID by remember { mutableStateOf<String?>(null) }
+    var trackingStarted by remember { mutableStateOf(false) }
+
+    // Load DataStore values
+    LaunchedEffect(Unit) {
+        DataStoreHelper.getParentId(context).collect { parentId = it }
+    }
+    LaunchedEffect(Unit) {
+        DataStoreHelper.getChildUID(context).collect { childUID = it }
+    }
+
+    // default: start tracking automatically only if you want
+    LaunchedEffect(parentId, childUID) {
+        if (!parentId.isNullOrBlank() && !childUID.isNullOrBlank()) {
+            // keep false by default; you can set to true to auto-start
+            trackingStarted = false
+        }
+    }
+
+    if (parentId != null && childUID != null) {
+        TrackingContentSafe(
+            parentId = parentId!!,
+            childUID = childUID!!,
+            trackingStarted = trackingStarted,
+            dangerZoneViewModel = dangerZoneViewModel,
+            childLocationViewModel = childLocationViewModel
+        )
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Loading user info…")
+        }
+    }
+}
 
 // ==========================
 // TrackingContentWrapper
@@ -203,6 +295,7 @@ fun TrackingContentWrapper(
     } else {
         Box(modifier = Modifier.fillMaxSize()) {
             TrackingContentSafe(
+                parentId = parentId,
                 childUID = childUID,
                 trackingStarted = trackingStarted,
                 dangerZoneViewModel = dangerZoneViewModel,
@@ -230,80 +323,86 @@ fun DashboardWithDrawer(
     navController: NavHostController,
     dangerZoneViewModel: DangerZoneViewModel,
     childUID: String,
-    parentId: String // <-- pass the logged-in parentId here
+    parentId: String
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    var profileImageUri by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             Column(modifier = Modifier.padding(16.dp)) {
+
+                // Drawer Close Button
                 IconButton(onClick = { scope.launch { drawerState.close() } }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = androidx.compose.ui.graphics.Color.Black)
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        tint = androidx.compose.ui.graphics.Color.Black
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_launcher_foreground),
-                        contentDescription = "Profile",
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .clickable { }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Child Name", style = MaterialTheme.typography.titleMedium)
-                    Text("UID: ${childUID ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = { }) { Text("Edit Profile") }
-                }
+                Text(
+                    "Dashboard Menu",
+                    style = MaterialTheme.typography.titleMedium
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                // ----------------------------
+                // Manage Danger Zones Button
+                // ----------------------------
                 Button(
                     onClick = {
-                        // Navigate to DangerZoneScreen and pass parentId
-                        navController.navigate("danger_zone/$parentId")
+                        navController.navigate("danger_zone/$parentId/$childUID")
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Manage Danger Zones") }
+                ) {
+                    Text("Manage Danger Zones")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // ----------------------------
+                // ⭐ Child Safety Insights Button
+                // (Styled exactly the same)
+                // ----------------------------
+                Button(
+                    onClick = {
+                        navController.navigate("insights/$parentId/$childUID")
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Child Safety Insights")
+                }
             }
         }
     ) {
-        childUID?.let { uid ->
-            DashboardScreen(
-                navController = navController,
-                parentId = parentId, // <-- pass the parentId here
-                childUID = uid,
-                profileImageUri = profileImageUri,
-                onProfileClick = { scope.launch { drawerState.open() } },
-                onImagePick = { },
-                dangerZoneViewModel = dangerZoneViewModel
-            )
-        } ?: Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Waiting for UID…")
-        }
+        DashboardScreen(
+            navController = navController,
+            parentId = parentId,
+            childUID = childUID,
+            dangerZoneViewModel = dangerZoneViewModel,
+            profileImageUri = null,
+            onProfileClick = { scope.launch { drawerState.open() } },
+            onImagePick = {}
+        )
     }
 }
 
+
+
 // ==========================
-// DashboardScreen
+// DashboardScreen (YOU WANTED VERSION: FAB starts/stops DangerZoneService)
 // ==========================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     navController: NavHostController,
-    parentId: String,
-    childUID: String,
+    parentId: String?,
+    childUID: String?,
     profileImageUri: String?,
     onProfileClick: () -> Unit,
     onImagePick: () -> Unit,
@@ -312,11 +411,18 @@ fun DashboardScreen(
     val context = LocalContext.current
     var tracking by remember { mutableStateOf(false) }
 
-    // ViewModels
     val childLocationViewModel: ChildLocationViewModel = viewModel()
     val alertViewModel: DangerZoneAlertViewModel = viewModel()
+    val status by alertViewModel.zoneStatus
 
-    // Notification permission launcher
+    // Firestore listener
+    LaunchedEffect(childUID) {
+        if (!childUID.isNullOrBlank() && !parentId.isNullOrBlank()) {
+            alertViewModel.startListening(parentId, childUID)
+        }
+    }
+
+    // Launcher for Notification permission (Android 13+)
     val requestNotificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -325,10 +431,24 @@ fun DashboardScreen(
         }
     }
 
-    // Start Firestore listener for alerts
-    val status by alertViewModel.zoneStatus
-    LaunchedEffect(childUID) {
-        alertViewModel.startListening(parentId, childUID)
+    // Launcher for Location & Foreground service permissions
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        val fineLocationGranted = perms[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val foregroundGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            perms[Manifest.permission.FOREGROUND_SERVICE_LOCATION] == true
+        } else true
+
+        if (fineLocationGranted && foregroundGranted) {
+            // Permissions granted, start service
+            startDangerZoneService(context, childUID!!, parentId!!)
+            tracking = true
+            Toast.makeText(context, "Tracking started", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Location permission required", Toast.LENGTH_SHORT).show()
+            tracking = false
+        }
     }
 
     Scaffold(
@@ -346,29 +466,36 @@ fun DashboardScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
 
-            // ----------------------
-            // Map + Tracking
-            // ----------------------
-            TrackingContentSafe(
-                childUID = childUID,
-                trackingStarted = tracking,
-                dangerZoneViewModel = dangerZoneViewModel,
-                childLocationViewModel = childLocationViewModel
-            )
+            // Map + tracking content
+            if (!childUID.isNullOrBlank() && !parentId.isNullOrBlank()) {
+                TrackingContentSafe(
+                    parentId = parentId,
+                    childUID = childUID,
+                    trackingStarted = tracking,
+                    dangerZoneViewModel = dangerZoneViewModel,
+                    childLocationViewModel = childLocationViewModel
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Loading user info…")
+                }
+            }
 
-            // ----------------------
-            // Floating DangerZone Alert
-            // ----------------------
+            // Danger zone alert box
             Column(modifier = Modifier.align(Alignment.TopCenter)) {
                 DangerZoneAlertBox(status)
             }
 
-            // ----------------------
-            // Floating Action Button (Start/Stop Tracking)
-            // ----------------------
+            // Start/Stop FAB
             FloatingActionButton(
                 onClick = {
-                    // Notification permission check
+                    // Safety: Check IDs
+                    if (childUID.isNullOrBlank() || parentId.isNullOrBlank()) {
+                        Toast.makeText(context, "User data not ready", Toast.LENGTH_SHORT).show()
+                        return@FloatingActionButton
+                    }
+
+                    // Notification permission (Android 13+)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
                         != PackageManager.PERMISSION_GRANTED
@@ -377,23 +504,31 @@ fun DashboardScreen(
                         return@FloatingActionButton
                     }
 
-                    if (childUID.isBlank()) return@FloatingActionButton
+                    if (!tracking) {
+                        // Prepare permissions to request
+                        val permissions = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            permissions.add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
+                        }
 
-                    tracking = !tracking
-                    val intent = Intent(context, DangerZoneService::class.java).apply {
-                        putExtra(DangerZoneService.CHILD_UID, childUID)
-                        putParcelableArrayListExtra(
-                            DangerZoneService.ZONES,
-                            ArrayList(dangerZoneViewModel.dangerZones.toList())
-                        )
-                    }
+                        // Check if permissions already granted
+                        val hasAllPermissions = permissions.all { perm ->
+                            ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+                        }
 
-                    if (tracking) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(intent)
-                        else context.startService(intent)
-                        Toast.makeText(context, "Tracking started", Toast.LENGTH_SHORT).show()
+                        if (hasAllPermissions) {
+                            startDangerZoneService(context, childUID, parentId)
+                            tracking = true
+                            Toast.makeText(context, "Tracking started", Toast.LENGTH_SHORT).show()
+                        } else {
+                            // Request missing permissions
+                            locationLauncher.launch(permissions.toTypedArray())
+                        }
+
                     } else {
+                        // Stop tracking
                         context.stopService(Intent(context, DangerZoneService::class.java))
+                        tracking = false
                         Toast.makeText(context, "Tracking stopped", Toast.LENGTH_SHORT).show()
                     }
                 },
@@ -407,6 +542,22 @@ fun DashboardScreen(
         }
     }
 }
+
+// Helper function to start the foreground service safely
+private fun startDangerZoneService(context: Context, childUID: String, parentId: String) {
+    val intent = Intent(context, DangerZoneService::class.java).apply {
+        putExtra(DangerZoneService.CHILD_UID, childUID)
+        putExtra("parentId", parentId)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        context.startForegroundService(intent)
+    } else {
+        context.startService(intent)
+    }
+}
+
+
 
 // ==========================
 // BottomNavigationBar
@@ -433,6 +584,9 @@ fun DashboardMapView(
 ) {
     val dangerZones by remember { derivedStateOf { dangerZoneViewModel.dangerZones.toList() } }
 
+    // Keep track of last camera position to avoid jumping
+    val lastCameraPosition = remember { mutableStateOf<GeoPoint?>(null) }
+
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { ctx ->
@@ -444,20 +598,24 @@ fun DashboardMapView(
                 setBuiltInZoomControls(true)
                 controller.setZoom(18.0)
                 controller.setCenter(GeoPoint(current.latitude, current.longitude))
+                lastCameraPosition.value = GeoPoint(current.latitude, current.longitude)
             }
         },
         update = { map ->
             map.overlays.clear()
+
+            // Draw location history polyline
             val points = history.map { GeoPoint(it.latitude, it.longitude) }
             if (points.isNotEmpty()) map.overlays.add(Polyline().apply { setPoints(points) })
 
+            // Add child marker
             map.overlays.add(Marker(map).apply {
                 position = GeoPoint(current.latitude, current.longitude)
                 title = "Current location"
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             })
-            map.controller.setCenter(GeoPoint(current.latitude, current.longitude))
 
+            // Add danger zones
             dangerZones.forEach { zone ->
                 map.overlays.add(Polygon().apply {
                     setPoints(createCirclePoints(zone.lat, zone.lon, zone.radius))
@@ -467,10 +625,21 @@ fun DashboardMapView(
                 })
             }
 
+            // Only move camera if the location changed
+            val newGeo = GeoPoint(current.latitude, current.longitude)
+            if (lastCameraPosition.value == null ||
+                lastCameraPosition.value!!.latitude != newGeo.latitude ||
+                lastCameraPosition.value!!.longitude != newGeo.longitude
+            ) {
+                map.controller.setCenter(newGeo)
+                lastCameraPosition.value = newGeo
+            }
+
             map.invalidate()
         }
     )
 }
+
 
 fun createCirclePoints(lat: Double, lon: Double, radiusMeters: Double, pointsCount: Int = 36): List<GeoPoint> {
     val result = mutableListOf<GeoPoint>()

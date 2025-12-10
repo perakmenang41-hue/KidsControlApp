@@ -4,6 +4,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -35,7 +37,7 @@ class MyFirebaseService : FirebaseMessagingService() {
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val body = json.toString().toRequestBody(mediaType)
         val request = Request.Builder()
-            .url("http://YOUR_LOCAL_OR_RENDER_SERVER/api/parent/save-token") // Replace with your backend URL
+            .url("https://kidscontrolapp.onrender.com/api/parent/save-token") // Replace with your backend URL
             .post(body)
             .build()
 
@@ -61,16 +63,25 @@ class MyFirebaseService : FirebaseMessagingService() {
         val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Danger Zone Alert"
         val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: "Your child is in or approaching a danger zone!"
 
-        // Log in emulator with extra info if available
+        // Extract additional fields for debugging
         val parentId = remoteMessage.data["parentId"] ?: "unknown"
+        val childUID = remoteMessage.data["childUID"] ?: "unknown"
         val zoneName = remoteMessage.data["zoneName"] ?: "unknown zone"
-        Log.d("FCM_NOTIFICATION", "Alert sent to parentId: $parentId for zone: $zoneName")
+        val zoneState = remoteMessage.data["zoneState"] ?: "unknown" // outside, approach, inside, prolonged, exited
 
-        // Optional: show Toast for testing in emulator
-        Toast.makeText(this, "$title: $body", Toast.LENGTH_LONG).show()
+        Log.d("FCM_NOTIFICATION", "Parent: $parentId, Child: $childUID, Zone: $zoneName, State: $zoneState")
+
+        // Show Toast safely on main thread
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(
+                applicationContext,
+                "$title: $body\nState: $zoneState",
+                Toast.LENGTH_LONG
+            ).show()
+        }
 
         // Show a local notification
-        showNotification(title, body)
+        showNotification(title, "$body\nState: $zoneState")
     }
 
     // Helper function to display local notifications

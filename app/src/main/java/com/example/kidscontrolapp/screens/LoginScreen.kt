@@ -15,8 +15,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.kidscontrolapp.navigation.Routes
 import com.example.kidscontrolapp.viewmodel.LoginViewModel
+import com.example.kidscontrolapp.data.DataStoreHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import com.example.kidscontrolapp.navigation.Routes
+
 
 @Composable
 fun LoginScreen(
@@ -34,7 +39,6 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         Text(
             text = "Login",
             style = MaterialTheme.typography.titleLarge.copy(
@@ -45,7 +49,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Email Input
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -57,7 +60,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Password Input
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -70,7 +72,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Login Button
         Button(
             onClick = {
                 if (email.isBlank() || password.isBlank()) {
@@ -79,12 +80,20 @@ fun LoginScreen(
                     viewModel.login(
                         email,
                         password,
-                        onSuccess = {
+                        context = context,
+                        onSuccess = { parentId, childUID ->
+
+                            // Save login result
+                            CoroutineScope(Dispatchers.IO).launch {
+                                DataStoreHelper.saveParentInfo(context, parentId, childUID)
+                            }
+
+                            // After login → go to ParentChoice first
                             navController.navigate(Routes.PARENT_CHOICE) {
                                 popUpTo(Routes.LOGIN) { inclusive = true }
                             }
-                        },
-                        context = context
+                        }
+
                     )
                 }
             },
@@ -96,7 +105,6 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Error message
         viewModel.errorMessage.value?.let { msg ->
             Text(
                 text = msg,
@@ -105,12 +113,10 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // Sign up navigation
         TextButton(onClick = { navController.navigate(Routes.SIGNUP) }) {
             Text("Don't have an account? Sign Up")
         }
 
-        // Loading indicator
         if (viewModel.loading.value) {
             Spacer(modifier = Modifier.height(16.dp))
             CircularProgressIndicator()

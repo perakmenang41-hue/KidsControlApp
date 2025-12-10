@@ -5,20 +5,23 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
 import android.util.Log
-import com.example.kidscontrolapp.utils.FirestoreProvider
+import com.example.kidscontrolapp.BuildConfig
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 
 class LocationApp : Application() {
+
+    companion object {
+        lateinit var firestore: FirebaseFirestore
+    }
 
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize Firestore (real Firestore)
-        val db = FirestoreProvider.getFirestore()
+        firestore = FirebaseFirestore.getInstance()
 
-        // Log which Firestore is used
-        Log.d("FIRESTORE_TEST", "Using Firestore host: ${db.firestoreSettings.host}")
 
-        // Create notification channel
+        // Notification channel
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 "location_channel",

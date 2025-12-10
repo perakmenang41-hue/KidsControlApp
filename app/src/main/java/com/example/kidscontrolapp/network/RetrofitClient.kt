@@ -5,22 +5,23 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // ⚠️ YOUR LOCAL BACKEND IP
-    private const val BASE_URL = "http://192.168.0.6:5000/"
-
-    // ⭐ MUST MATCH POSTMAN TOKEN
+    private const val BASE_URL = "https://kidscontrolapp.onrender.com/"
     private const val API_KEY = "supersecretapikey"
 
-    // Logging interceptor
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
-    // OkHttp client with Authorization header and logging
     private val client = OkHttpClient.Builder()
+        // Increase timeout for slow connections
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        // Add Authorization + Content-Type
         .addInterceptor(Interceptor { chain ->
             val newRequest = chain.request().newBuilder()
                 .addHeader("Authorization", "Bearer $API_KEY")
@@ -28,13 +29,13 @@ object RetrofitClient {
                 .build()
             chain.proceed(newRequest)
         })
-        .addInterceptor(logging)  // ⭐ Logging added
+        .addInterceptor(logging)
         .build()
 
     val api: ApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(client)  // ⭐ Use client with Authorization header + logging
+            .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(ApiService::class.java)

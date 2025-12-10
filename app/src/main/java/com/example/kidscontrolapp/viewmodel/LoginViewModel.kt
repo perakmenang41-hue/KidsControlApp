@@ -5,9 +5,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.kidscontrolapp.utils.FirestoreProvider
 import com.example.kidscontrolapp.data.DataStoreHelper
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.kidscontrolapp.utils.FirestoreProvider
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,12 +18,15 @@ class LoginViewModel : ViewModel() {
 
     val loading: MutableState<Boolean> = mutableStateOf(false)
     val errorMessage: MutableState<String?> = mutableStateOf(null)
-
     private val db = FirestoreProvider.getFirestore()
 
-    fun login(email: String, password: String, onSuccess: (parentId: String) -> Unit, context: Context) {
+    fun login(
+        email: String,
+        password: String,
+        context: Context,
+        onSuccess: (parentId: String, childUID: String) -> Unit
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
-            // ✅ Update Compose state on main thread
             withContext(Dispatchers.Main) {
                 loading.value = true
                 errorMessage.value = null
@@ -47,6 +49,7 @@ class LoginViewModel : ViewModel() {
                 val doc = snapshot.documents[0]
                 val storedHashedPassword = doc.getString("password") ?: ""
                 val parentId = doc.getString("parentId") ?: ""
+                val childUID = doc.getString("childUID") ?: ""
 
                 if (hashPassword(password) != storedHashedPassword) {
                     withContext(Dispatchers.Main) {
@@ -56,20 +59,18 @@ class LoginViewModel : ViewModel() {
                     return@launch
                 }
 
-                // Save parentId
-                DataStoreHelper.saveParentId(context, parentId)
+                // Save parentId + childUID dynamically in DataStore
+                DataStoreHelper.saveParentInfo(context, parentId, childUID)
 
                 // Update FCM token
-                FirebaseMessaging.getInstance().token.addOnCompleteListener { tokenTask ->
-                    val fcmToken = tokenTask.result ?: ""
-                    if (fcmToken.isNotEmpty()) {
-                        doc.reference.update("fcmToken", fcmToken)
-                    }
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    val token = task.result ?: ""
+                    if (token.isNotEmpty()) doc.reference.update("fcmToken", token)
                 }
 
                 withContext(Dispatchers.Main) {
                     loading.value = false
-                    onSuccess(parentId)
+                    onSuccess(parentId, childUID)
                 }
 
             } catch (e: Exception) {
@@ -81,7 +82,6 @@ class LoginViewModel : ViewModel() {
         }
     }
 
-    // Move hashPassword outside login function
     private fun hashPassword(password: String): String {
         val bytes = password.toByteArray()
         val md = MessageDigest.getInstance("SHA-256")

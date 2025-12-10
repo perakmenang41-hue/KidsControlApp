@@ -11,9 +11,9 @@ import androidx.navigation.NavController
 import com.example.kidscontrolapp.data.DataStoreHelper
 import com.example.kidscontrolapp.utils.FirestoreProvider
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.net.URLEncoder
 import java.util.*
 
 @Composable
@@ -36,7 +36,7 @@ fun EnterChildUIDScreen(navController: NavController) {
     }
 
     val parentId = parentIdState.value
-    val isParentLoading = parentId == null
+    val isParentLoading = parentId.isNullOrBlank()
 
     Column(
         modifier = Modifier
@@ -56,7 +56,6 @@ fun EnterChildUIDScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ⚠ Show loading if parentId is still being retrieved
         if (isParentLoading) {
             Text("Loading parent info...")
             Spacer(modifier = Modifier.height(8.dp))
@@ -72,7 +71,7 @@ fun EnterChildUIDScreen(navController: NavController) {
                 }
 
                 if (parentId.isNullOrBlank()) {
-                    Toast.makeText(context, "Parent not logged in yet, wait a moment...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Parent not loaded yet, wait a moment...", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
@@ -82,7 +81,7 @@ fun EnterChildUIDScreen(navController: NavController) {
                     try {
                         val uidToCheck = childUID.trim()
 
-                        // 1️⃣ Check if child exists
+                        // 1️⃣ Check if child exists in Firestore
                         val childQuery = firestore.collection("registered_users")
                             .whereEqualTo("uniqueId", uidToCheck)
                             .get()
@@ -100,11 +99,11 @@ fun EnterChildUIDScreen(navController: NavController) {
                         val childId = childDoc.id
                         val childName = childDoc.getString("name") ?: "Unknown"
 
-                        // 2️⃣ Check if already linked to THIS parent
+                        // 2️⃣ Check if already linked to this parent
                         val existingFamily = firestore.collection("family")
                             .document(childId)
                             .collection("members")
-                            .document(parentId!!)
+                            .document(parentId)
                             .get()
                             .await()
 
@@ -112,16 +111,19 @@ fun EnterChildUIDScreen(navController: NavController) {
                             launch(Dispatchers.Main) {
                                 isChecking = false
                                 Toast.makeText(context, "Child already linked! Opening dashboard...", Toast.LENGTH_SHORT).show()
-                                // ✅ Pass both childUID and parentId
-                                navController.navigate("dashboard/$childId/$parentId")
+
+                                // ✅ Safe navigation
+                                val encodedChildId = URLEncoder.encode(childId, "UTF-8")
+                                val encodedParentId = URLEncoder.encode(parentId, "UTF-8")
+                                navController.navigate("dashboard/$encodedChildId/$encodedParentId")
                             }
                             return@launch
                         }
 
-                        // 3️⃣ Check if linked to ANY OTHER parent
+                        // 3️⃣ Check if linked to any other parent
                         val otherFamily = firestore.collectionGroup("members")
                             .whereEqualTo("childId", childId)
-                            .whereNotEqualTo("parentId", parentId!!)
+                            .whereNotEqualTo("parentId", parentId)
                             .get()
                             .await()
 
@@ -137,7 +139,7 @@ fun EnterChildUIDScreen(navController: NavController) {
                         firestore.collection("family")
                             .document(childId)
                             .collection("members")
-                            .document(parentId!!)
+                            .document(parentId)
                             .set(
                                 mapOf(
                                     "parentId" to parentId,
@@ -152,8 +154,11 @@ fun EnterChildUIDScreen(navController: NavController) {
                         launch(Dispatchers.Main) {
                             isChecking = false
                             Toast.makeText(context, "Child linked successfully!", Toast.LENGTH_SHORT).show()
-                            // ✅ Pass both childUID and parentId
-                            navController.navigate("dashboard/$childId/$parentId")
+
+                            // ✅ Safe navigation
+                            val encodedChildId = URLEncoder.encode(childId, "UTF-8")
+                            val encodedParentId = URLEncoder.encode(parentId, "UTF-8")
+                            navController.navigate("dashboard/$encodedChildId/$encodedParentId")
                         }
 
                     } catch (e: Exception) {

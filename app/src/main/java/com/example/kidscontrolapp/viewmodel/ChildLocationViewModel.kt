@@ -2,129 +2,100 @@ package com.example.kidscontrolapp.viewmodel
 
 import android.content.Context
 import android.util.Log
-import android.widget.Toast
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
-import com.example.kidscontrolapp.network.GenericResponse
 import com.example.kidscontrolapp.network.RetrofitClient
 import com.example.kidscontrolapp.network.UpdateLocationRequest
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class ChildLocationViewModel : ViewModel() {
 
-    // ----------------------------
-    // Firestore Real-time Listener
-    // ----------------------------
-    private var listener: ListenerRegistration? = null
-
-    var zoneStates = mutableStateOf<Map<String, String>>(emptyMap())
-        private set
-
-    var timeInZone = mutableStateOf<Map<String, String>>(emptyMap())
-        private set
-
-    var lastAlert = mutableStateOf<String?>(null)
-        private set
-
-    fun startListening(childUID: String) {
-        stopListening() // remove old listener if any
-
-        val firestore = FirebaseFirestore.getInstance()
-        listener = firestore.collection("child_position")
-            .document(childUID)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e("ChildLocationVM", "Listen failed: $error")
-                    return@addSnapshotListener
-                }
-
-                if (snapshot != null && snapshot.exists()) {
-                    val data = snapshot.data ?: return@addSnapshotListener
-
-                    val newZoneStates = data["zoneStates"] as? Map<String, String> ?: emptyMap()
-                    val newTimeInZone = data["timeInZone"] as? Map<String, String> ?: emptyMap()
-
-                    // Check for alerts
-                    newZoneStates.forEach { (zoneId, state) ->
-                        val prevState = zoneStates.value[zoneId]
-
-                        if (prevState != state) {
-                            when(state) {
-                                "APPROACHING" -> lastAlert.value = "Child APPROACHING at zone $zoneId"
-                                "INSIDE" -> lastAlert.value = "Child INSIDE at zone $zoneId"
-                                "EXITED" -> lastAlert.value = "Child EXITED zone $zoneId"
-                            }
-                        }
-
-                        // Check prolonged (>5 min)
-                        if(state == "INSIDE") {
-                            val duration = newTimeInZone[zoneId] ?: "00:00:00:00"
-                            val parts = duration.split(":").map { it.toIntOrNull() ?: 0 }
-                            val totalSeconds = parts[0]*86400 + parts[1]*3600 + parts[2]*60 + parts[3]
-                            if(totalSeconds >= 300 && prevState != "PROLONGED") {
-                                lastAlert.value = "Child PROLONGED at zone $zoneId"
-                            }
-                        }
-                    }
-
-                    zoneStates.value = newZoneStates
-                    timeInZone.value = newTimeInZone
-                }
-            }
-    }
-
-    fun stopListening() {
-        listener?.remove()
-        listener = null
-    }
-
-    // ----------------------------
-    // Network: Update Location to Backend
-    // ----------------------------
-    fun updateLocation(
+    // Existing function — DO NOT CHANGE
+    fun sendChildLocationUpdate(
         context: Context,
         parentId: String,
         childUID: String,
         lat: Double,
         lon: Double,
-        onComplete: ((Boolean) -> Unit)? = null
+        battery: Int,
+        speed: Float
     ) {
-        val request = UpdateLocationRequest(parentId, childUID, lat, lon)
+        val request = UpdateLocationRequest(
+            parentId = parentId,
+            childUID = childUID,
+            lat = lat,
+            lon = lon,
+            battery = battery,
+            speed = speed
+        )
 
         RetrofitClient.api.updateChildLocation(request)
-            .enqueue(object : Callback<GenericResponse> {
-
+            .enqueue(object : Callback<com.example.kidscontrolapp.network.GenericResponse> {
                 override fun onResponse(
-                    call: Call<GenericResponse>,
-                    response: Response<GenericResponse>
+                    call: Call<com.example.kidscontrolapp.network.GenericResponse>,
+                    response: Response<com.example.kidscontrolapp.network.GenericResponse>
                 ) {
-                    if (response.isSuccessful && response.body()?.success == true) {
-                        Log.d("UPDATE_LOC", "Location updated successfully")
-                        onComplete?.invoke(true)
+                    if (response.isSuccessful) {
+                        Log.d("ChildLocationVM", "Location updated successfully")
                     } else {
-                        Log.e(
-                            "UPDATE_LOC",
-                            "Error: ${response.code()} - ${response.body()?.message}"
-                        )
-                        Toast.makeText(context, "Failed to update location", Toast.LENGTH_SHORT).show()
-                        onComplete?.invoke(false)
+                        Log.e("ChildLocationVM", "Error updating location: ${response.code()}")
                     }
                 }
 
-                override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
-                    Log.e("UPDATE_LOC", "Network error: ${t.message}")
-                    Toast.makeText(context, "Network error", Toast.LENGTH_SHORT).show()
-                    onComplete?.invoke(false)
+                override fun onFailure(
+                    call: Call<com.example.kidscontrolapp.network.GenericResponse>,
+                    t: Throwable
+                ) {
+                    Log.e("ChildLocationVM", "Failed to update location", t)
                 }
             })
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        stopListening()
+    // ==========================
+    // New: Live location holder
+    // ==========================
+    private val _lastLocation = MutableStateFlow<LocationData?>(null)
+    val lastLocation: StateFlow<LocationData?> = _lastLocation
+
+    data class LocationData(
+        val lat: Double,
+        val lon: Double,
+        val speed: Float,
+        val battery: Int
+    )
+
+    fun updateLocation(lat: Double, lon: Double, speed: Float, battery: Int) {
+        _lastLocation.value = LocationData(lat, lon, speed, battery)
+    }
+
+    fun sendLocationToBackend(parentId: String, childUID: String) {
+        val loc = _lastLocation.value ?: return
+
+        val request = UpdateLocationRequest(
+            parentId = parentId,
+            childUID = childUID,
+            lat = loc.lat,
+            lon = loc.lon,
+            battery = loc.battery,
+            speed = loc.speed
+        )
+
+        RetrofitClient.api.updateChildLocation(request)
+            .enqueue(object : Callback<com.example.kidscontrolapp.network.GenericResponse> {
+                override fun onResponse(
+                    call: Call<com.example.kidscontrolapp.network.GenericResponse>,
+                    response: Response<com.example.kidscontrolapp.network.GenericResponse>
+                ) {
+                    if (response.isSuccessful) Log.d("ChildLocationVM", "Location updated")
+                    else Log.e("ChildLocationVM", "Backend error: ${response.code()}")
+                }
+
+                override fun onFailure(call: Call<com.example.kidscontrolapp.network.GenericResponse>, t: Throwable) {
+                    Log.e("ChildLocationVM", "Failed to send location", t)
+                }
+            })
     }
 }

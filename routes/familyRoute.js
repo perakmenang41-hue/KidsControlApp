@@ -1,4 +1,5 @@
-﻿const express = require("express");
+﻿// routes/update-location.js  (replace contents of your existing file)
+const express = require("express");
 const router = express.Router();
 const admin = require("../firebase");
 const calculateRisk = require("../aiRiskEngine");
@@ -31,6 +32,7 @@ router.post("/update-location", async (req, res) => {
 
     console.log("📍 Incoming:", req.body);
 
+    // respond fast, process in background
     res.json({
         success: true,
         message: "Location received, processing in background"
@@ -40,70 +42,154 @@ router.post("/update-location", async (req, res) => {
         try {
             const now = Date.now();
 
-            // 1️⃣ Calculate Speed
+            // -------------------------
+            // 1️⃣ Calculate speed (m/s) using last saved in child_locations
+            // -------------------------
             const lastRef = db.collection("child_locations").doc(childUID);
             const lastDoc = await lastRef.get();
             let speedMS = 0;
 
             if (lastDoc.exists) {
                 const last = lastDoc.data();
-                const dt = Math.max(1, (now - last.timestamp) / 1000);
-                speedMS = getDistance(last.lat, last.lon, lat, lon) / dt;
+                const lastTs = last.timestamp || now;
+                const dt = Math.max(1, (now - lastTs) / 1000); // seconds
+                const dist = getDistance(last.lat, last.lon, lat, lon); // meters
+                speedMS = dist / dt;
             }
 
+            // persist latest simple location for speed calc and debugging
             await lastRef.set({ lat, lon, timestamp: now }, { merge: true });
 
-            // 2️⃣ Get previous child states
+            // -------------------------
+            // 2️⃣ Load previous child_position doc (zone states, timers, etc.)
+            // -------------------------
             const childRef = db.collection("child_position").doc(childUID);
             const childDoc = await childRef.get();
-            const prevZones = childDoc.exists ? childDoc.data()?.zoneStates || {} : {};
-            const lastAlerts = childDoc.exists ? childDoc.data()?.lastAlertTimes || {} : {};
-            const timeInZoneRaw = childDoc.exists ? childDoc.data()?.timeInZoneRaw || {} : {};
-            const newStates = {};
-            const newAlertTimes = { ...lastAlerts };
+            const childData = childDoc.exists ? childDoc.data() : {};
 
-            // 3️⃣ Zones
+            const prevZones = childData?.zoneStates || {};           // { zoneId: "INSIDE" }
+            const lastAlerts = childData?.lastAlertTimes || {};      // { zoneId: timestamp }
+            const timeInZoneRaw = childData?.timeInZoneRaw || {};    // { zoneId: ms }
+            const exitCandidates = childData?.exitCandidates || {};  // { zoneId: candidateTs }
+            const lastUpdatedRaw = childData?.lastUpdatedRaw || now; // timestamp of previous processing
+
+            // -------------------------
+            // 3️⃣ Load zones for this parent
+            // -------------------------
             const zonesSnap = await db.collection("Parent_registered")
                 .doc(parentId)
                 .collection("dangerZones")
                 .get();
 
-            const WARNING = 50;
-            const COOLDOWN = 10 * 60 * 1000; // 10 minutes
+            // thresholds & config
+            const APPROACH_BUFFER = 20;            // meters (your choice)
+            const PROLONGED_MS = 5 * 60 * 1000;   // 5 minutes
+            const EXIT_CONFIRM_MS = 3 * 1000;     // 3 seconds to confirm exit (debounce)
+            const WARNING = 50;                   // notification proximity buffer (unchanged)
+            const COOLDOWN = 10 * 60 * 1000;      // 10 minutes alert cooldown
 
+            const newStates = {};
+            const newAlertTimes = { ...lastAlerts };
+
+            // ensure timeInZoneRaw has entries for all zones
+            for (const z of zonesSnap.docs) {
+                const zid = z.id;
+                if (!timeInZoneRaw[zid]) timeInZoneRaw[zid] = 0;
+            }
+
+            // compute delta since last update for accumulation
+            const deltaSinceLast = Math.max(0, now - (lastUpdatedRaw || now));
+
+            // -------------------------
+            // 4️⃣ Process each zone
+            // -------------------------
             for (const zoneDoc of zonesSnap.docs) {
                 const zone = zoneDoc.data();
                 const zoneId = zone.zoneId || zoneDoc.id;
                 if (!timeInZoneRaw[zoneId]) timeInZoneRaw[zoneId] = 0;
 
-                const distance = getDistance(lat, lon, zone.lat, zone.lon);
+                // Validate zone fields
+                const zoneLat = zone.lat;
+                const zoneLon = zone.lon;
+                const radius = zone.radius;
+                if (typeof zoneLat !== "number" || typeof zoneLon !== "number" || typeof radius !== "number") {
+                    console.warn(`Skipping malformed zone ${zoneDoc.id}`);
+                    continue;
+                }
+
+                const distance = getDistance(lat, lon, zoneLat, zoneLon); // meters
+
+                // risk calculation (AI)
                 const { risk, level, reasons } = calculateRisk({
                     speed: speedMS,
                     hour: new Date().getHours(),
                     distance,
-                    radius: zone.radius,
-                    timeInZone: timeInZoneRaw[zoneId]
+                    radius,
+                    timeInZone: timeInZoneRaw[zoneId] || 0
                 });
 
-                // Determine current state
-                let state = "OUTSIDE";
-                if (distance <= zone.radius) state = "INSIDE";
-                else if (distance <= zone.radius + WARNING) state = "APPROACHING";
-                else if (prevZones[zoneId] === "INSIDE") state = "EXITED";
+                // Determine state with robust ordering and exit confirmation
+                // Default to previous state so we don't flip-flop unnecessarily
+                const prevState = prevZones[zoneId] || "OUTSIDE";
+                let state = prevState;
 
-                // ✅ Log prev/current for debugging
-                console.log(`🟢 Child ${childUID} | Zone ${zone.name} | Prev: ${prevZones[zoneId] || "NONE"} | Current: ${state}`);
-
-                if (state === "INSIDE") {
-                    timeInZoneRaw[zoneId] += now - (childDoc.data()?.lastUpdatedRaw || now);
+                // 1) INSIDE
+                if (distance <= radius) {
+                    state = "INSIDE";
+                    // clear any exit candidate
+                    if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
+                }
+                // 2) APPROACHING
+                else if (distance <= radius + APPROACH_BUFFER) {
+                    state = "APPROACHING";
+                    if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
+                }
+                // 3) Candidate EXIT: previously INSIDE but now outside approach buffer
+                else if (prevState === "INSIDE" || prevState === "PROLONGED") {
+                    const candidateTs = exitCandidates[zoneId] || now;
+                    if (!exitCandidates[zoneId]) {
+                        // mark candidate, don't change state yet (avoid immediate EXIT)
+                        exitCandidates[zoneId] = candidateTs;
+                        state = prevState; // keep previous until confirmed
+                    } else {
+                        // confirm exit only after EXIT_CONFIRM_MS elapsed
+                        if (now - candidateTs >= EXIT_CONFIRM_MS) {
+                            state = "EXITED";
+                            delete exitCandidates[zoneId];
+                        } else {
+                            // within confirmation window: keep previous state
+                            state = prevState;
+                        }
+                    }
+                }
+                // 4) OUTSIDE (default)
+                else {
+                    state = "OUTSIDE";
+                    if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
                 }
 
-                const canAlert =
-                    risk >= 70 ||
-                    now - (lastAlerts[zoneId] || 0) > COOLDOWN ||
-                    state !== prevZones[zoneId];
+                // Accumulate timeInZoneRaw correctly:
+                // If previously INSIDE (or PROLONGED), they were inside during the last interval
+                if (prevState === "INSIDE" || prevState === "PROLONGED") {
+                    timeInZoneRaw[zoneId] = (timeInZoneRaw[zoneId] || 0) + deltaSinceLast;
+                }
 
-                if (canAlert && state !== "OUTSIDE") {
+                // If new state becomes INSIDE and prev wasn't, we start counting on next cycles (we don't add retro delta)
+                // Determine PROLONGED
+                if ((state === "INSIDE" || state === "PROLONGED") && (timeInZoneRaw[zoneId] >= PROLONGED_MS)) {
+                    state = "PROLONGED";
+                }
+
+                // Log for debugging
+                console.log(`Zone ${zoneId} (${zone.name}) dist=${Math.round(distance)}m r=${radius} prev=${prevState} -> new=${state} timeInZoneMs=${timeInZoneRaw[zoneId]}`);
+
+                // Decide whether to alert
+                const shouldAlert =
+                    risk >= 70 || // high AI risk
+                    now - (lastAlerts[zoneId] || 0) > COOLDOWN ||
+                    state !== prevState;
+
+                if (shouldAlert && state !== "OUTSIDE") {
                     const type = risk >= 70 ? "AI_ALERT" : state;
 
                     await sendNotification(
@@ -120,9 +206,9 @@ router.post("/update-location", async (req, res) => {
                         level,
                         riskScore: risk,
                         reasons: reasons.join(", "),
-                        durationInZone: formatDuration(timeInZoneRaw[zoneId]),
-                        zoneLat: zone.lat,
-                        zoneLon: zone.lon,
+                        durationInZone: formatDuration(timeInZoneRaw[zoneId] || 0),
+                        zoneLat,
+                        zoneLon,
                         childLat: lat,
                         childLon: lon,
                         readStatus: false
@@ -132,16 +218,18 @@ router.post("/update-location", async (req, res) => {
                 }
 
                 newStates[zoneId] = state;
-            }
+            } // end zones loop
 
-            // Save in Firestore with formatted durations
+            // -------------------------
+            // 5️⃣ Persist results
+            // -------------------------
             const timeInZoneFormatted = {};
             for (const zoneId in timeInZoneRaw) {
                 timeInZoneFormatted[zoneId] = formatDuration(timeInZoneRaw[zoneId]);
             }
 
             await childRef.set({
-           		parentId,
+                parentId,
                 lat,
                 lon,
                 speedMS,
@@ -151,7 +239,8 @@ router.post("/update-location", async (req, res) => {
                 zoneStates: newStates,
                 lastAlertTimes: newAlertTimes,
                 timeInZone: timeInZoneFormatted,
-                timeInZoneRaw
+                timeInZoneRaw,
+                exitCandidates
             }, { merge: true });
 
         } catch (err) {
