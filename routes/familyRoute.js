@@ -1,110 +1,115 @@
 ﻿// routes/familyRoute.js
-// FULL FIXED VERSION — correct distance, fast exit, hard exit
-
 const express = require("express");
 const router = express.Router();
+const { getDistanceMeters } = require("../utils/distance");
+const db = require("../db"); // your database module
+const admin = require("../firebaseAdmin"); // for FCM notifications
 
-// ===== CONFIG =====
-const APPROACH_BUFFER = 20; // meters
-const EXIT_CONFIRM_MS = 500; // 0.5s debounce (mobile friendly)
-const HARD_EXIT_BUFFER = 30; // meters beyond radius = instant OUTSIDE
+// Constants
+const APPROACH_BUFFER = 10;     // meters
+const HARD_EXIT_BUFFER = 30;    // meters
+const EXIT_CONFIRM_MS = 500;    // ms
 
-// ===== STATE MEMORY =====
-const zoneStates = {};           // { zoneId: { state, lastTs } }
-const timeInZoneRaw = {};        // { zoneId: ms }
-const exitCandidates = {};       // { zoneId: timestamp }
+// In-memory state
+let zoneStates = {}; // { [childId_zoneId]: { state, lastTs } }
+let exitCandidates = {}; 
+let timeInZoneRaw = {}; // { [childId_zoneId]: durationMs }
 
-// ===== DISTANCE (HAVERSINE, METERS) =====
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // meters
-  const toRad = (v) => (v * Math.PI) / 180;
+async function sendNotificationToParent(childId, zoneId, state, distance) {
+  try {
+    // Fetch parent FCM token from DB
+    const { rows } = await db.query("SELECT parent_fcm_token FROM children WHERE id = $1", [childId]);
+    const token = rows[0]?.parent_fcm_token;
+    if (!token) return;
 
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
+    let title = "Zone Alert";
+    let body = `Child ${state} zone ${zoneId} (${Math.round(distance)}m)`;
 
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
+    await admin.messaging().send({
+      token,
+      notification: { title, body },
+    });
 
-  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    console.log(`Notification sent: Child ${childId} is ${state} zone ${zoneId}`);
+  } catch (err) {
+    console.error("FCM send error:", err);
+  }
 }
 
-// ===== MAIN ROUTE =====
-router.post("/update-location", async (req, res) => {
+router.post("/checkZones", async (req, res) => {
   try {
-    const { lat, lon, zones } = req.body;
+    const { childId, lat, lon } = req.body;
     const now = Date.now();
-
     const results = [];
 
+    // Fetch zones from DB
+    const { rows: zones } = await db.query("SELECT * FROM zones");
+
     for (const zone of zones) {
-      const { id: zoneId, centerLat, centerLon, radius } = zone;
+      const { id: zoneId, centerLat, centerLon, radius, isDangerZone } = zone;
 
       const distance = getDistanceMeters(lat, lon, centerLat, centerLon);
-
-      if (!zoneStates[zoneId]) {
-        zoneStates[zoneId] = { state: "OUTSIDE", lastTs: now };
-        timeInZoneRaw[zoneId] = 0;
-      }
-
-      const prevState = zoneStates[zoneId].state;
-      const delta = now - zoneStates[zoneId].lastTs;
+      const key = `${childId}_${zoneId}`;
+      const prevState = zoneStates[key]?.state || "OUTSIDE";
       let state = prevState;
 
       // ===== STATE MACHINE =====
       if (distance <= radius) {
         state = "INSIDE";
-        delete exitCandidates[zoneId];
-
+        delete exitCandidates[key];
       } else if (distance <= radius + APPROACH_BUFFER) {
         state = "APPROACHING";
-        delete exitCandidates[zoneId];
-
+        delete exitCandidates[key];
       } else if (distance > radius + HARD_EXIT_BUFFER) {
         state = "OUTSIDE";
-        delete exitCandidates[zoneId];
-
+        delete exitCandidates[key];
       } else if (prevState === "INSIDE" || prevState === "PROLONGED") {
-        const candidateTs = exitCandidates[zoneId] || now;
-
-        if (!exitCandidates[zoneId]) {
-          exitCandidates[zoneId] = candidateTs;
+        const candidateTs = exitCandidates[key] || now;
+        if (!exitCandidates[key]) {
+          exitCandidates[key] = candidateTs;
           state = prevState;
         } else if (now - candidateTs >= EXIT_CONFIRM_MS) {
           state = "EXITED";
-          delete exitCandidates[zoneId];
+          delete exitCandidates[key];
         } else {
           state = prevState;
         }
-
       } else {
         state = "OUTSIDE";
       }
 
       // ===== TIME ACCUMULATION =====
       if (prevState === "INSIDE" || prevState === "PROLONGED") {
-        timeInZoneRaw[zoneId] += delta;
+        timeInZoneRaw[key] = (timeInZoneRaw[key] || 0) + (now - (zoneStates[key]?.lastTs || now));
       }
 
-      // ===== SAVE =====
-      zoneStates[zoneId] = { state, lastTs: now };
+      // ===== SEND NOTIFICATION ON ANY STATE CHANGE =====
+      if (isDangerZone && state !== prevState) {
+        await sendNotificationToParent(childId, zoneId, state, distance);
+      }
+
+      // ===== SAVE STATE =====
+      zoneStates[key] = { state, lastTs: now };
+
+      // ===== UPDATE DATABASE =====
+      await db.query(
+        "UPDATE child_position SET zone_state = $1, last_lat = $2, last_lon = $3 WHERE child_id = $4 AND zone_id = $5",
+        [state, lat, lon, childId, zoneId]
+      );
 
       console.log(
-        `Zone ${zoneId} dist=${distance.toFixed(1)}m radius=${radius} prev=${prevState} → ${state}`
+        `Child ${childId} Zone ${zoneId} dist=${distance.toFixed(1)}m radius=${radius} prev=${prevState} → ${state}`
       );
 
       results.push({
         zoneId,
         state,
         distance: Math.round(distance),
-        durationMs: timeInZoneRaw[zoneId],
+        durationMs: timeInZoneRaw[key] || 0,
       });
     }
 
     res.json({ success: true, zones: results });
-
   } catch (err) {
     console.error("Zone check error:", err);
     res.status(500).json({ error: "Zone processing failed" });
