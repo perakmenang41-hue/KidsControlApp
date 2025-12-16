@@ -9,13 +9,16 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kidscontrolapp.R
 import com.example.kidscontrolapp.viewmodel.ChildInsightsViewModel
 import com.example.kidscontrolapp.viewmodel.AlertItem
 import com.example.kidscontrolapp.viewmodel.ZoneStateItem
 import com.example.kidscontrolapp.viewmodel.toAgo
+import com.example.kidscontrolapp.viewmodel.LocaleViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,99 +26,118 @@ fun ChildSafetyInsightsScreen(
     navController: NavController,
     parentId: String,
     childUid: String,
+    localeViewModel: LocaleViewModel,
     viewModel: ChildInsightsViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+    val locale by localeViewModel.locale.collectAsState()
+
+    val localizedContext = remember(locale) {
+        val config = context.resources.configuration
+        config.setLocale(locale)
+        context.createConfigurationContext(config)
+    }
+
     LaunchedEffect(Unit) {
         viewModel.start(parentId, childUid)
     }
 
     Scaffold(
         topBar = {
-            // ✅ REAL WORKING BAR
             CenterAlignedTopAppBar(
-                title = { Text("Safety Insights") },
+                title = { Text(localizedContext.getString(R.string.title_safety_insights)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(
-                            Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = localizedContext.getString(R.string.back)
                         )
                     }
                 }
             )
         }
-    ) { pad ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
-                .padding(pad)
+                .padding(paddingValues)
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-
             SummaryCard(
                 lat = viewModel.lat.value,
                 lon = viewModel.lon.value,
                 battery = viewModel.battery.value,
                 speed = viewModel.speed.value,
-                lastUpdated = viewModel.lastUpdated.value
+                lastUpdated = viewModel.lastUpdated.value,
+                localizedContext = localizedContext
             )
 
             Spacer(Modifier.height(16.dp))
 
-            ZoneSection(viewModel.zoneStates)
+            ZoneSection(viewModel.zoneStates, localizedContext)
 
             Spacer(Modifier.height(16.dp))
 
-            AlertSection(viewModel.alerts)
+            AlertSection(viewModel.alerts, localizedContext)
         }
     }
 }
 
+/* ---------- Summary Card ---------- */
 @Composable
-fun SummaryCard(lat: Double?, lon: Double?, battery: Double?, speed: Double?, lastUpdated: String) {
+fun SummaryCard(
+    lat: Double?,
+    lon: Double?,
+    battery: Double?,
+    speed: Double?,
+    lastUpdated: String,
+    localizedContext: android.content.Context
+) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
-            Text("Last Updated: $lastUpdated")
-            Text("Lat: ${lat ?: "--"}")
-            Text("Lon: ${lon ?: "--"}")
-            Text("Battery: ${battery ?: "--"}%")
-            Text("Speed: ${speed ?: "--"} m/s")
+            Text(localizedContext.getString(R.string.label_last_updated, lastUpdated))
+            Text(localizedContext.getString(R.string.label_lat, lat?.toString() ?: "--"))
+            Text(localizedContext.getString(R.string.label_lon, lon?.toString() ?: "--"))
+            Text(localizedContext.getString(R.string.label_battery, battery?.toString() ?: "--"))
+            Text(localizedContext.getString(R.string.label_speed, speed?.toString() ?: "--"))
         }
     }
 }
 
+/* ---------- Zone Section ---------- */
 @Composable
-fun ZoneSection(zones: List<ZoneStateItem>) {
-    Text("Zone States", style = MaterialTheme.typography.titleMedium)
+fun ZoneSection(zones: List<ZoneStateItem>, localizedContext: android.content.Context) {
+    Text(localizedContext.getString(R.string.title_zone_states), style = MaterialTheme.typography.titleMedium)
 
     if (zones.isEmpty()) {
-        Text("No zones recorded.")
+        Text(localizedContext.getString(R.string.msg_no_zones_recorded))
         return
     }
 
     Column {
-        zones.forEach {
+        zones.forEach { zone ->
             Card(
-                Modifier
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 4.dp)
             ) {
                 Column(Modifier.padding(8.dp)) {
-                    Text(it.zoneId)
-                    Text("State: ${it.state}")
-                    Text("Duration: ${it.duration ?: "--"}")
+                    Text(zone.zoneId)
+                    Text(localizedContext.getString(R.string.label_state, zone.state))
+                    Text(localizedContext.getString(R.string.label_duration, zone.duration ?: "--"))
                 }
             }
         }
     }
 }
 
+/* ---------- Alert Section ---------- */
 @Composable
-fun AlertSection(alerts: List<AlertItem>) {
-    Text("Recent Alerts", style = MaterialTheme.typography.titleMedium)
+fun AlertSection(alerts: List<AlertItem>, localizedContext: android.content.Context) {
+    Text(localizedContext.getString(R.string.title_recent_alerts), style = MaterialTheme.typography.titleMedium)
 
     if (alerts.isEmpty()) {
-        Text("No alerts.")
+        Text(localizedContext.getString(R.string.msg_no_alerts))
         return
     }
 

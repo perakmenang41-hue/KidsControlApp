@@ -9,6 +9,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import com.example.kidscontrolapp.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import okhttp3.*
@@ -16,28 +17,46 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import com.example.kidscontrolapp.ui.inbox.InboxHelper
+import com.example.kidscontrolapp.data.InboxMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class MyFirebaseService : FirebaseMessagingService() {
 
-    // Called when a new FCM token is generated
+    // -------------------------------------------------
+    // 1️⃣ New token handling (unchanged)
+    // -------------------------------------------------
     override fun onNewToken(fcmToken: String) {
         super.onNewToken(fcmToken)
         Log.d("FCM_TOKEN", "New FCM Token: $fcmToken")
         sendTokenToServer(fcmToken)
     }
 
-    // Send FCM token to your backend
+    // -------------------------------------------------
+    // 2️⃣ Inject the **InboxHelper** (plain class)
+    // -------------------------------------------------
+    @Inject lateinit var inboxHelper: InboxHelper
+
+    // -------------------------------------------------
+    // Existing token‑to‑server logic (unchanged)
+    // -------------------------------------------------
     private fun sendTokenToServer(fcmToken: String) {
         val json = JSONObject().apply {
-            put("parentId", "95CVMGOC") // Replace with actual parent UID
+            put("parentId", "95CVMGOC") // TODO: replace with real parent UID
             put("fcmToken", fcmToken)
         }
 
         val client = OkHttpClient()
         val mediaType = "application/json; charset=utf-8".toMediaType()
         val body = json.toString().toRequestBody(mediaType)
+
         val request = Request.Builder()
-            .url("https://kidscontrolapp.onrender.com/api/parent/save-token") // Replace with your backend URL
+            .url("https://kidscontrolapp.onrender.com/api/parent/save-token")
             .post(body)
             .build()
 
@@ -52,54 +71,99 @@ class MyFirebaseService : FirebaseMessagingService() {
         })
     }
 
-    // Called when a new FCM message is received
+    // -------------------------------------------------
+    // 3️⃣ Message handling – store the inbound FCM data
+    // -------------------------------------------------
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        // Log the message for debugging
         Log.d("FCM_MESSAGE", "Message received: ${remoteMessage.data}")
 
-        // Extract notification data
-        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: "Danger Zone Alert"
-        val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: "Your child is in or approaching a danger zone!"
+        // -------------------------------------------------
+        // Extract title & body – fallback to defaults from resources
+        // -------------------------------------------------
+        val defaultTitle = getString(R.string.default_fcm_title)
+        val defaultBody = getString(R.string.default_fcm_body)
 
-        // Extract additional fields for debugging
+        val title = remoteMessage.notification?.title
+            ?: remoteMessage.data["title"]
+            ?: defaultTitle
+
+        val body = remoteMessage.notification?.body
+            ?: remoteMessage.data["body"]
+            ?: defaultBody
+
+        // -------------------------------------------------
+        // Additional data (for logging / debugging)
+        // -------------------------------------------------
         val parentId = remoteMessage.data["parentId"] ?: "unknown"
         val childUID = remoteMessage.data["childUID"] ?: "unknown"
         val zoneName = remoteMessage.data["zoneName"] ?: "unknown zone"
-        val zoneState = remoteMessage.data["zoneState"] ?: "unknown" // outside, approach, inside, prolonged, exited
+        val zoneState = remoteMessage.data["zoneState"] ?: "unknown"
 
-        Log.d("FCM_NOTIFICATION", "Parent: $parentId, Child: $childUID, Zone: $zoneName, State: $zoneState")
+        Log.d(
+            "FCM_NOTIFICATION",
+            "Parent: $parentId, Child: $childUID, Zone: $zoneName, State: $zoneState"
+        )
 
-        // Show Toast safely on main thread
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(
-                applicationContext,
-                "$title: $body\nState: $zoneState",
-                Toast.LENGTH_LONG
-            ).show()
+        // -------------------------------------------------
+        // Build the **Room entity** – only the fields that exist
+        // -------------------------------------------------
+        val inboxMessage = InboxMessage(
+            // `id` is auto‑generated, so we leave it as the default `0L`
+            childName = remoteMessage.data["childName"] ?: "Unknown Child",
+            status    = remoteMessage.data["status"]    ?: "UNKNOWN",
+            zoneName  = zoneName,                       // we already have this value
+            timestamp = System.currentTimeMillis(),
+            isRead    = false
+        )
+
+        // -------------------------------------------------
+        // Store the message in the local DB (background thread)
+        // -------------------------------------------------
+        CoroutineScope(Dispatchers.IO).launch {
+            inboxHelper.storeRemoteMessage(inboxMessage)
         }
 
+        // -------------------------------------------------
+        // UI feedback – toast (main thread)
+        // -------------------------------------------------
+        Handler(Looper.getMainLooper()).post {
+            val toastMsg = getString(
+                R.string.toast_fcm_message,
+                title,
+                body,
+                getString(R.string.label_state),
+                zoneState
+            )
+            Toast.makeText(applicationContext, toastMsg, Toast.LENGTH_LONG).show()
+        }
+
+        // -------------------------------------------------
         // Show a local notification
-        showNotification(title, "$body\nState: $zoneState")
+        // -------------------------------------------------
+        showNotification(title, "$body\n${getString(R.string.label_state)}: $zoneState")
     }
 
-    // Helper function to display local notifications
+    // -------------------------------------------------
+    // 4️⃣ Notification helper – unchanged
+    // -------------------------------------------------
     private fun showNotification(title: String, body: String) {
         val channelId = "danger_zone_alerts"
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Create notification channel for Android O+
+        // Create notification channel (Android O+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelName = getString(R.string.notif_channel_name)
             val channel = NotificationChannel(
                 channelId,
-                "Danger Zone Alerts",
+                channelName,
                 NotificationManager.IMPORTANCE_HIGH
             )
             manager.createNotificationChannel(channel)
         }
 
-        // Build and display the notification
+        // Build the notification
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(body)
@@ -108,6 +172,7 @@ class MyFirebaseService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .build()
 
+        // Use a unique ID each time (timestamp‑based)
         manager.notify(System.currentTimeMillis().toInt(), notification)
     }
 }

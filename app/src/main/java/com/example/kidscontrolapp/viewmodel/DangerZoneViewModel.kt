@@ -8,20 +8,15 @@ import androidx.lifecycle.ViewModel
 import com.example.kidscontrolapp.utils.FirestoreProvider
 import com.example.kidscontrolapp.model.DangerZone
 import com.example.kidscontrolapp.network.DangerZoneResponse
+import com.example.kidscontrolapp.network.DeleteZoneRequest
 import com.example.kidscontrolapp.network.RetrofitClient
-import com.example.kidscontrolapp.BuildConfig
-import com.google.firebase.firestore.FirebaseFirestore
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
 class DangerZoneViewModel : ViewModel() {
 
-    // Firestore instance (auto uses emulator in Debug)
     private val db = FirestoreProvider.getFirestore()
-
-
-    // Local zone list
     private val _dangerZones = mutableStateListOf<DangerZone>()
     val dangerZones: List<DangerZone> get() = _dangerZones
 
@@ -33,9 +28,6 @@ class DangerZoneViewModel : ViewModel() {
         _dangerZones.remove(zone)
     }
 
-    // ============================================================
-    // LOAD ALL DANGER ZONES FROM PARENT SUBCOLLECTION
-    // ============================================================
     fun loadDangerZones(parentId: String) {
         db.collection("Parent_registered")
             .document(parentId)
@@ -50,119 +42,96 @@ class DangerZoneViewModel : ViewModel() {
                             DangerZone(
                                 id = doc.id,
                                 name = data["name"].toString(),
-                                lat = data["lat"] as Double,
-                                lon = data["lon"] as Double,
-                                radius = data["radius"] as Double
+                                lat = (data["lat"]?.toString() ?: "0.0").toDouble(),
+                                lon = (data["lon"]?.toString() ?: "0.0").toDouble(),
+                                radius = (data["radius"]?.toString() ?: "50.0").toDouble()
                             )
                         )
                     } catch (e: Exception) {
                         Log.e("DANGER_ZONE", "Error parsing zone ${doc.id}", e)
                     }
                 }
-                Log.d("DANGER_ZONE", "✅ Loaded ${_dangerZones.size} zones for parent $parentId")
             }
             .addOnFailureListener { e ->
-                Log.e("DANGER_ZONE", "❌ Failed to load danger zones", e)
+                Log.e("DANGER_ZONE", "Failed to load danger zones", e)
             }
     }
 
-    // ============================================================
-    // ADD ZONE TO FIRESTORE UNDER PARENT
-    // ============================================================
-    fun addZoneToParent(parentId: String, zone: DangerZone) {
-        val parentDoc = db.collection("Parent_registered").document(parentId)
-        parentDoc.collection("dangerZones")
-            .document(zone.id)
-            .set(zone)
-            .addOnSuccessListener {
-                Log.d("DANGER_ZONE", "✅ Zone added to parent $parentId with id ${zone.id}")
-                _dangerZones.add(zone)
-            }
-            .addOnFailureListener { e ->
-                Log.e("DANGER_ZONE", "❌ Failed to add zone", e)
-            }
-    }
-
-    // ============================================================
-    // ADD ZONE TO BACKEND (optional)
-    // ============================================================
-    fun addZoneToBackend(
-        context: Context,
-        parentId: String,
-        name: String,
-        lat: Double,
-        lon: Double,
-        radius: Double,
-        onComplete: (Boolean) -> Unit
-    ) {
-        val zoneData = hashMapOf(
-            "name" to name,
-            "lat" to lat,
-            "lon" to lon,
-            "radius" to radius,
-            "timestamp" to System.currentTimeMillis()
-        )
-
-        db.collection("Parent_registered")
-            .document(parentId)
-            .collection("dangerZones")
-            .add(zoneData)
-            .addOnSuccessListener {
-                _dangerZones.add(
-                    DangerZone(
-                        id = it.id,
-                        name = name,
-                        lat = lat,
-                        lon = lon,
-                        radius = radius
-                    )
-                )
-                onComplete(true)
-            }
-            .addOnFailureListener {
-                Toast.makeText(context, "Failed to add danger zone: ${it.message}", Toast.LENGTH_SHORT).show()
-                onComplete(false)
-            }
-    }
-
-    // ============================================================
-    // REMOVE ZONE FROM BACKEND
-    // ============================================================
-    fun removeZoneFromBackend(
+    fun deleteDangerZone(
         context: Context,
         parentId: String,
         zoneId: String,
-        onComplete: ((Boolean) -> Unit)? = null
+        onSuccess: (() -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
     ) {
+        // 1️⃣ Delete from Parent_registered/dangerZones
         db.collection("Parent_registered")
             .document(parentId)
             .collection("dangerZones")
             .document(zoneId)
             .delete()
             .addOnSuccessListener {
-                Log.d("DANGER_ZONE", "🗑 Zone removed from Firestore")
                 _dangerZones.removeAll { it.id == zoneId }
-                onComplete?.invoke(true)
+                Toast.makeText(context, "Zone deleted successfully", Toast.LENGTH_SHORT).show()
+                onSuccess?.invoke()
+
+                // 2️⃣ Remove zone references from all child_position maps
+                removeZoneFromChildrenMaps(parentId, zoneId)
             }
             .addOnFailureListener { e ->
-                Log.e("DANGER_ZONE", "❌ Failed to remove zone", e)
+                Log.e("DANGER_ZONE", "Failed to remove zone", e)
                 Toast.makeText(context, "Failed to remove zone: ${e.message}", Toast.LENGTH_SHORT).show()
-                onComplete?.invoke(false)
+                onError?.invoke(e.message ?: "Unknown error")
             }
 
-        RetrofitClient.api.removeDangerZone(zoneId)
+        // 3️⃣ Delete from backend API
+        val request = DeleteZoneRequest(parentId)
+        RetrofitClient.api.removeDangerZone(zoneId, request)
             .enqueue(object : Callback<DangerZoneResponse> {
                 override fun onResponse(call: Call<DangerZoneResponse>, response: Response<DangerZoneResponse>) {
                     if (response.isSuccessful && response.body()?.success == true) {
-                        Log.d("DANGER_ZONE", "✅ Zone removed from backend")
+                        Log.d("DANGER_ZONE", "Zone removed from backend")
                     } else {
-                        Log.e("DANGER_ZONE", "❌ Failed to remove zone from backend")
+                        Log.e("DANGER_ZONE", "Failed to remove zone from backend")
                     }
                 }
 
                 override fun onFailure(call: Call<DangerZoneResponse>, t: Throwable) {
-                    Log.e("DANGER_ZONE", "❌ Network error removing zone", t)
+                    Log.e("DANGER_ZONE", "Network error removing zone", t)
                 }
             })
     }
+
+    // ============================================================
+    // Remove zone ID from all relevant child_position maps
+    // ============================================================
+    private fun removeZoneFromChildrenMaps(parentId: String, zoneId: String) {
+        db.collection("child_position")
+            .whereEqualTo("parentId", parentId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val batch = db.batch()
+                snapshot.forEach { doc ->
+                    val docRef = doc.reference
+                    val timeInZone = doc.get("timeInZone") as? MutableMap<String, Any> ?: mutableMapOf()
+                    val timeInZoneRaw = doc.get("timeInZoneRaw") as? MutableMap<String, Any> ?: mutableMapOf()
+                    val zoneStates = doc.get("zoneStates") as? MutableMap<String, Any> ?: mutableMapOf()
+
+                    timeInZone.remove(zoneId)
+                    timeInZoneRaw.remove(zoneId)
+                    zoneStates.remove(zoneId)
+
+                    batch.update(docRef,
+                        "timeInZone", timeInZone,
+                        "timeInZoneRaw", timeInZoneRaw,
+                        "zoneStates", zoneStates
+                    )
+                }
+                batch.commit()
+                    .addOnSuccessListener { Log.d("DANGER_ZONE", "Zone removed from all children maps") }
+                    .addOnFailureListener { e -> Log.e("DANGER_ZONE", "Failed to remove zone from children maps", e) }
+            }
+            .addOnFailureListener { e -> Log.e("DANGER_ZONE", "Failed to query children for zone deletion", e) }
+    }
 }
+

@@ -1,20 +1,27 @@
 package com.example.kidscontrolapp.viewmodel
 
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import android.content.Context
 import android.util.Log
-import androidx.lifecycle.ViewModel
 import com.example.kidscontrolapp.network.RetrofitClient
 import com.example.kidscontrolapp.network.UpdateLocationRequest
+import com.example.kidscontrolapp.tracking.LocationHandler   // <-- interface import
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class ChildLocationViewModel : ViewModel() {
+@HiltViewModel
+class ChildLocationViewModel @Inject constructor() : ViewModel(),
+    LocationHandler {                               // <-- implements the interface
 
-    // Existing function — DO NOT CHANGE
-    fun sendChildLocationUpdate(
+    // -----------------------------------------------------------------
+    // Interface methods – `override` is required
+    // -----------------------------------------------------------------
+    override fun sendChildLocationUpdate(
         context: Context,
         parentId: String,
         childUID: String,
@@ -31,32 +38,28 @@ class ChildLocationViewModel : ViewModel() {
             battery = battery,
             speed = speed
         )
-
         RetrofitClient.api.updateChildLocation(request)
             .enqueue(object : Callback<com.example.kidscontrolapp.network.GenericResponse> {
                 override fun onResponse(
                     call: Call<com.example.kidscontrolapp.network.GenericResponse>,
                     response: Response<com.example.kidscontrolapp.network.GenericResponse>
                 ) {
-                    if (response.isSuccessful) {
-                        Log.d("ChildLocationVM", "Location updated successfully")
-                    } else {
-                        Log.e("ChildLocationVM", "Error updating location: ${response.code()}")
-                    }
+                    if (response.isSuccessful) Log.d("ChildLocationViewModel", "Location updated")
+                    else Log.e("ChildLocationViewModel", "Error ${response.code()}")
                 }
 
                 override fun onFailure(
                     call: Call<com.example.kidscontrolapp.network.GenericResponse>,
                     t: Throwable
                 ) {
-                    Log.e("ChildLocationVM", "Failed to update location", t)
+                    Log.e("ChildLocationViewModel", "Failed to update", t)
                 }
             })
     }
 
-    // ==========================
-    // New: Live location holder
-    // ==========================
+    // -----------------------------------------------------------------
+    // Live‑location holder (useful for UI)
+    // -----------------------------------------------------------------
     private val _lastLocation = MutableStateFlow<LocationData?>(null)
     val lastLocation: StateFlow<LocationData?> = _lastLocation
 
@@ -67,13 +70,20 @@ class ChildLocationViewModel : ViewModel() {
         val battery: Int
     )
 
-    fun updateLocation(lat: Double, lon: Double, speed: Float, battery: Int) {
+    override fun updateLocation(
+        lat: Double,
+        lon: Double,
+        speed: Float,
+        battery: Int
+    ) {
         _lastLocation.value = LocationData(lat, lon, speed, battery)
     }
 
-    fun sendLocationToBackend(parentId: String, childUID: String) {
+    // -----------------------------------------------------------------
+    // Periodic backend push – required by LocationHandler
+    // -----------------------------------------------------------------
+    override fun sendLocationToBackend(parentId: String, childUID: String) {
         val loc = _lastLocation.value ?: return
-
         val request = UpdateLocationRequest(
             parentId = parentId,
             childUID = childUID,
@@ -82,19 +92,21 @@ class ChildLocationViewModel : ViewModel() {
             battery = loc.battery,
             speed = loc.speed
         )
-
         RetrofitClient.api.updateChildLocation(request)
             .enqueue(object : Callback<com.example.kidscontrolapp.network.GenericResponse> {
                 override fun onResponse(
                     call: Call<com.example.kidscontrolapp.network.GenericResponse>,
                     response: Response<com.example.kidscontrolapp.network.GenericResponse>
                 ) {
-                    if (response.isSuccessful) Log.d("ChildLocationVM", "Location updated")
-                    else Log.e("ChildLocationVM", "Backend error: ${response.code()}")
+                    if (response.isSuccessful) Log.d("ChildLocationViewModel", "Backend updated")
+                    else Log.e("ChildLocationViewModel", "Backend error ${response.code()}")
                 }
 
-                override fun onFailure(call: Call<com.example.kidscontrolapp.network.GenericResponse>, t: Throwable) {
-                    Log.e("ChildLocationVM", "Failed to send location", t)
+                override fun onFailure(
+                    call: Call<com.example.kidscontrolapp.network.GenericResponse>,
+                    t: Throwable
+                ) {
+                    Log.e("ChildLocationViewModel", "Backend failure", t)
                 }
             })
     }

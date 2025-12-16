@@ -1,36 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.kidscontrolapp">
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ================= PERMISSIONS ================= -->
+    <!-- ==================== PERMISSIONS ==================== -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
-
-    <!-- Notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-
-    <!-- Optional: if you track child in the background -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
-    <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
-    <!-- Required for foreground location services (Android 13+) -->
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE_LOCATION"
         android:required="false" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
-    <!-- Optional: remove if unused -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-
+    <!-- ==================== APPLICATION ==================== -->
+    <!-- Hilt entry point is LocationApp (in package com.example.kidscontrolapp.system) -->
     <application
-        android:name=".system.LocationApp"
+        android:name=".KidsControlApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -40,9 +29,11 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
-        <!-- ================= ACTIVITIES ================= -->
+        <!-- ==================== ACTIVITIES ==================== -->
+
+        <!-- Main dashboard – launcher -->
         <activity
-            android:name=".AuthActivity"
+            android:name=".system.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -50,24 +41,17 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".activity.DashboardActivity"
-            android:exported="true" />
-
+        <!-- Add Child screen -->
         <activity
             android:name=".AddChildActivity"
             android:exported="true" />
 
-        <activity
-            android:name=".system.MainActivity"
-            android:exported="true" />
-
-        <!-- ================= OSMDroid META-DATA ================= -->
+        <!-- ==================== OSMDROID META‑DATA ==================== -->
         <meta-data
             android:name="org.osmdroid.config"
             android:value="cache" />
 
-        <!-- ================= LOCATION SERVICES ================= -->
+        <!-- ==================== LOCATION SERVICES ==================== -->
         <service
             android:name=".system.LocationService"
             android:exported="false"
@@ -78,12 +62,12 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
-        <!-- Firebase Messaging Service -->
+        <!-- ==================== FIREBASE MESSAGING ==================== -->
         <service
             android:name=".service.MyFirebaseService"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
 

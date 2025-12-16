@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Example string – replace or add more as needed -->
+    <string name="app_name">KidsControlApp</string>
+
+    <!-- You can keep any strings that need to differ on API 31+ here -->
+    <!-- For now, this file can be empty except for the required <resources> tag -->
+</resources>

@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">KidsControl</string>
+    <string name="app_logo_description">應用程式圖示說明</string>
+    <string name="email_subject_support">KidsControlApp 支援</string>
+
+    <!-- Screen titles -->
+    <string name="title_about_app">關於應用程式</string>
+    <string name="title_dashboard">儀表板</string>
+    <string name="title_inbox">收件匣</string>
+    <string name="title_profile">個人資料</string>
+    <string name="title_login">登入</string>
+    <string name="title_signup">註冊</string>
+    <string name="title_parent_choice">歡迎，家長</string>
+    <string name="title_enter_child_uid">輸入兒童 UID</string>
+    <string name="title_safety_insights">安全洞察</string>
+    <string name="title_danger_zone">管理危險區域</string>
+    <string name="title_delete_zones">刪除危險區域</string>
+    <string name="title_report_issue">回報問題</string>
+    <string name="title_support">支援</string>
+    <string name="title_profile_details">個人資料詳細資訊</string>
+    <string name="title_change_password">變更密碼</string>
+    <string name="title_language">語言</string>
+
+    <string name="content_desc_back">返回</string>
+    <string name="content_desc_manage_zones">管理區域</string>
+    <string name="title_new_zone">新建區域</string>
+
+    <string name="label_last_updated">最近更新：%1$s</string>
+    <string name="label_lat">緯度：%1$s</string>
+    <string name="label_lon">經度：%1$s</string>
+    <string name="label_battery">電池：%1$s%%</string>
+    <string name="label_speed">速度：%1$s m/s</string>
+
+    <string name="title_zone_states">區域狀態</string>
+    <string name="title_recent_alerts">最近警報</string>
+
+    <string name="msg_no_zones_recorded">沒有記錄的區域。</string>
+
+    <string name="label_state">狀態：%1$s</string>
+    <string name="label_duration">持續時間：%1$s</string>
+
+    <!-- Labels / Input fields -->
+    <string name="label_zone_name">區域名稱</string>
+    <string name="label_radius">半徑：%d 公尺</string>
+    <string name="label_email">電子郵件</string>
+    <string name="label_subject">主旨</string>
+    <string name="label_description">描述</string>
+    <string name="label_priority">優先順序</string>
+    <string name="label_add_screenshot">新增螢幕截圖</string>
+    <string name="label_save_change">儲存變更</string>
+    <string name="label_save">儲存</string>
+    <string name="label_cancel">取消</string>
+    <string name="label_enter_current_password">輸入目前密碼</string>
+    <string name="label_enter_new_password">輸入新密碼</string>
+    <string name="label_enter_new_password_confirmation">確認新密碼</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_confirm_add_zone">確認危險區域</string>
+    <string name="msg_confirm_add_zone">您確定要新增此危險區域嗎？</string>
+
+    <!-- Alerts -->
+    <string name="alert_approaching">⚠️ 兒童即將進入危險區域</string>
+    <string name="alert_inside">🚨 兒童已在危險區域內！</string>
+    <string name="alert_prolonged">⏱ 兒童在該區域逗留時間過長</string>
+    <string name="alert_exited">✅ 兒童已離開危險區域</string>
+
+    <!-- Misc UI -->
+    <string name="msg_parent_not_logged_in">家長尚未登入！請重新登入。</string>
+    <string name="msg_no_danger_zones">尚未新增危險區域。</string>
+    <string name="msg_no_alerts">目前沒有警示。</string>
+    <string name="msg_no_zones">尚未記錄任何區域。</string>
+    <string name="msg_no_new_messages">目前沒有新訊息</string>
+    <string name="msg_loading_dashboard">載入儀表板…</string>
+    <string name="msg_loading_user_info">載入使用者資訊…</string>
+    <string name="msg_enter_child_uid">請輸入 UID</string>
+    <string name="msg_parent_not_loaded">家長資訊載入中，請稍候…</string>
+    <string name="msg_invalid_child_uid">無效的兒童 UID</string>
+    <string name="msg_child_already_linked">已關聯此兒童！即將開啟儀表板…</string>
+    <string name="msg_child_linked_to_other">此兒童已關聯其他家長。</string>
+    <string name="msg_child_link_success">成功關聯兒童！</string>
+    <string name="msg_tracking_off">追蹤已關閉或正在等待兒童位置。</string>
+    <string name="msg_battery">電池：%1$s%%</string>
+    <string name="msg_status">狀態：%1$s</string>
+
+    <!-- About‑App description -->
+    <string name="about_description">
+        Kids Control 即時位置追蹤，協助父母監控並管理子女裝置使用情況，
+        設定安全區並即時收到警報。
+    </string>
+
+
+    <string name="content_desc_dashboard">儀表板</string>
+    <string name="content_desc_inbox">收件匣</string>
+    <string name="content_desc_profile">個人資料</string>
+
+    <string name="label_dashboard">儀表板</string>
+    <string name="label_inbox">收件匣</string>
+    <string name="label_profile">個人資料</string>
+
+    <string name="content_desc_profile_avatar">個人頭像</string>
+
+    <string name="text_no_new_messages">沒有新訊息</string>
+
+    <string name="content_desc_save_language">儲存語言</string>
+
+    <string name="content_desc_language">更改語言</string>
+
+    <string name="title_faq">常見問題</string>
+
+    <string name="notif_channel_name">危險區域警報</string>
+    <string name="default_fcm_title">危險區域警報</string>
+    <string name="default_fcm_body">您的孩子正處於或接近危險區域！</string>
+
+    <string name="faq_q_reset_password">如何重設密碼？</string>
+    <string name="faq_a_reset_password">在設定 → 更改密碼中點擊「密碼」。您將收到驗證郵件。</string>
+
+    <string name="faq_q_dark_mode">為什麼深色模式沒有變化？</string>
+    <string name="faq_a_dark_mode">確保在設定 → 深色模式中開啟切換開關。必要時重新啟動應用。</string>
+
+    <string name="faq_q_contact_support">我如何聯繫支援？</string>
+    <string name="faq_a_contact_support">使用下面的「Email Us」按鈕或訪問我們網站的支援頁面。</string>
+
+    <string name="btn_email_us">發送郵件</string>
+    <string name="btn_report_bug">回報錯誤</string>
+
+    <string name="dialog_bug_title">回報錯誤 / 提供回饋</string>
+    <string name="btn_send">發送</string>
+    <string name="btn_cancel">取消</string>
+
+    <string name="footer_version">版本 1.0.0</string>
+    <string name="content_desc_email">發送郵件</string>
+    <string name="content_desc_bug_report">回報錯誤</string>
+
+    <string name="title_sign_up">註冊</string>
+    <string name="label_full_name">全名</string>
+    <string name="label_phone">電話</string>
+    <string name="label_confirm_password">確認密碼</string>
+    <string name="btn_sign_up">註冊</string>
+    <string name="toast_all_fields_required">所有欄位皆為必填</string>
+    <string name="toast_passwords_mismatch">密碼不匹配</string>
+    <string name="toast_signup_success">註冊成功！父母 ID：%1$s</string>
+    <string name="toast_signup_failed">儲存父母失敗：%1$s</string>
+
+    <string name="priority_low">低</string>
+    <string name="priority_medium">中</string>
+    <string name="priority_high">高</string>
+    <string name="btn_add_screenshot">添加截圖</string>
+    <string name="btn_submit">提交</string>
+    <string name="content_desc_add_screenshot">添加截圖</string>
+
+    <string name="label_legal_name">法定姓名</string>
+    <string name="label_country">國家</string>
+    <string name="label_user_id">使用者 ID</string>
+    <string name="label_phone_number">電話號碼</string>
+    <string name="btn_save_change">保存變更</string>
+    <string name="toast_profile_saved">個人資料已保存</string>
+    <string name="toast_profile_save_failed">保存個人資料失敗</string>
+
+    <string name="label_current_password">目前密碼</string>
+    <string name="label_new_password">新密碼</string>
+    <string name="label_confirm_new_password">確認新密碼</string>
+    <string name="btn_save">保存</string>
+    <string name="toast_password_updated">密碼已更新</string>
+
+    <string name="title_welcome_parent">歡迎，家長</string>
+    <string name="subtitle_choose_continue">選擇繼續方式</string>
+    <string name="btn_add_new_child">新增孩子</string>
+    <string name="btn_use_existing_child">使用已有孩子</string>
+
+    <string name="label_password">密碼</string>
+    <string name="toast_enter_credentials">輸入電子郵件和密碼</string>
+    <string name="btn_sign_in">登入</string>
+    <string name="btn_logging_in">登入中…</string>
+    <string name="text_no_account">沒有帳戶？註冊</string>
+    <string name="error_invalid_credentials">電子郵件或密碼錯誤</string>
+
+    <string name="label_child_uid">子 UID</string>
+    <string name="msg_loading_parent">載入家長資訊中…</string>
+    <string name="btn_checking">檢查中…</string>
+    <string name="btn_add_child">新增子</string>
+
+    <string name="toast_enter_uid">請輸入 UID</string>
+    <string name="toast_parent_not_loaded">家長尚未載入，請稍候…</string>
+    <string name="toast_invalid_uid">子 UID 無效</string>
+    <string name="toast_already_linked">子已關聯！正在開啟儀表板…</string>
+    <string name="toast_already_linked_other">該子已關聯到其他家長。</string>
+    <string name="toast_link_success">子關聯成功！</string>
+    <string name="toast_error">錯誤：%1$s</string>
+
+    <string name="toast_location_permission_required">需要定位權限</string>
+    <string name="title_dashboard_menu">儀表板選單</string>
+    <string name="content_desc_start_stop_tracking">開始/停止追蹤</string>
+
+    <string name="btn_manage_danger_zones">管理危險區域</string>
+    <string name="btn_child_safety_insights">兒童安全洞察</string>
+    <string name="btn_start">開始</string>
+    <string name="btn_stop">停止</string>
+
+    <string name="label_status">狀態：%1$s</string>
+
+    <string name="marker_current_location">目前位置</string>
+
+    <!-- Language list -->
+    <string name="language_system">系統預設</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_malay">Bahasa Melayu</string>
+    <string name="language_chinese_simplified">简体中文</string>
+    <string name="language_chinese_traditional">繁體中文</string>
+
+    <!-- Profile placeholder -->
+    <string name="profile_username">使用者名稱</string>
+
+    <!-- Notification strings -->
+    <string name="notification_title">KidsControl — 追蹤</string>
+    <string name="notification_text">正在追蹤兒童…</string>
+
+    <!-- About‑App features -->
+    <string name="feature_location">即時位置追蹤</string>
+    <string name="feature_safe_zone">自訂安全區域提醒</string>
+    <string name="feature_statistics">使用統計與洞察</string>
+    <string name="feature_security">安全的家長控制</string>
+    <string name="feature_multilingual">多語言支援</string>
+
+    <!-- Buttons on About‑App -->
+    <string name="title_contact_support">聯絡支援</string>
+    <string name="title_visit_website">前往我們的網站</string>
+    <string name="title_open_source_licenses">開源授權條款</string>
+    <string name="title_terms_of_service">服務條款</string>
+    <string name="title_privacy_policy">隱私政策</string>
+
+    <!-- Settings -->
+    <string name="settings_profile_details">個人資料詳細資訊</string>
+    <string name="settings_password">密碼</string>
+    <string name="settings_dark_mode">深色模式</string>
+    <string name="settings_support">支援</string>
+    <string name="settings_report_issue">回報問題</string>
+    <string name="settings_about_app">關於應用程式</string>
+    <string name="settings_language">語言</string>
+    <string name="settings_logout">登出</string>
+
+    <!-- Toast / Snackbar -->
+    <string name="msg_parent_missing">缺少家長 ID！</string>
+    <string name="msg_child_missing">缺少兒童 UID！</string>
+    <string name="msg_zone_name_blank">區域名稱不可為空。</string>
+    <string name="msg_radius_invalid">半徑必須大於 0。</string>
+    <string name="msg_zone_added">已新增危險區域！</string>
+    <string name="msg_zone_failed">失敗：%1$s</string>
+    <string name="msg_error_generic">錯誤：%1$s</string>
+
+    <string name="msg_password_updated">密碼已更新</string>
+    <string name="msg_password_update_failed">更新密碼失敗</string>
+    <string name="msg_profile_saved">個人資料已儲存</string>
+    <string name="msg_profile_save_failed">儲存個人資料失敗</string>
+    <string name="msg_signup_success">註冊成功！家長 ID：%1$s</string>
+    <string name="msg_all_fields_required">所有欄位皆為必填</string>
+    <string name="msg_passwords_mismatch">密碼不相符</string>
+    <string name="error_email_password_required">需要電子郵件與密碼</string>
+    <string name="error_passwords_do_not_match">密碼不相符</string>
+    <string name="error_email_not_registered">電子郵件未註冊</string>
+    <string name="error_incorrect_password">密碼錯誤</string>
+    <string name="error_login_failed">登入失敗：%1$s</string>
+    <string name="error_password_too_short">密碼必須至少 6 個字元</string>
+    <string name="error_user_not_logged_in">使用者未登入</string>
+    <string name="error_current_password_incorrect">目前密碼不正確</string>
+    <string name="back">返回</string>
+
+    <string name="status_online">在線</string>
+    <string name="status_offline">離線</string>
+
+    <!-- Notification channel / alert strings -->
+    <string name="notif_title_tracking">KidsControl — 追蹤</string>
+    <string name="notif_text_tracking">正在追蹤兒童…</string>
+    <string name="notif_channel_dangerzone">DangerZone 服務</string>
+    <string name="notif_channel_fcm">危險區域警報</string>
+    <string name="notif_danger_alert_title">危險區域警報</string>
+    <string name="toast_fcm_message">%1$s：%2$s&#10;%3$s：%4$s</string>
+
+    <string name="version_format">版本 %1$s</string>
+
+</resources>

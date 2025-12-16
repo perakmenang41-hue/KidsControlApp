@@ -1,5 +1,6 @@
 package com.example.kidscontrolapp.components
 
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,14 +9,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,33 +21,49 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
 import com.example.kidscontrolapp.R
+import com.example.kidscontrolapp.ui.theme.ThemeManager   // <- global dark‑mode flow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(
     title: String,
     navController: NavHostController,
-    profileImage: String?,
-    onProfileClick: () -> Unit,  // opens drawer
-    onImagePick: () -> Unit,     // only used in drawer
+    profileImage: Uri?,                       // <- Uri? type
+    onProfileClick: () -> Unit,               // opens drawer
+    onImagePick: (Uri?) -> Unit,              // callback to update profile image
     showBackButton: Boolean = true
 ) {
+    // -------------------------------------------------
+    // 1️⃣ Read the global dark‑mode flag
+    // -------------------------------------------------
+    val isDark by ThemeManager.isDark.collectAsState()
+
+    // -------------------------------------------------
+    // 2️⃣ Choose colours based on the flag
+    // -------------------------------------------------
+    val backgroundColor = if (isDark) Color.Black else Color.White
+    val contentColor = if (isDark) Color.White else Color.Black
+    // Placeholder background for the avatar when no image is set
+    val placeholderBg = if (isDark) Color(0xFF444444) else Color.LightGray.copy(alpha = 0.4f)
+
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White,
-            titleContentColor = Color.Black,
-            navigationIconContentColor = Color.Black,
-            actionIconContentColor = Color.Black
+            containerColor = backgroundColor,
+            titleContentColor = contentColor,
+            navigationIconContentColor = contentColor,
+            actionIconContentColor = contentColor
         ),
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
 
-                // ✅ Both cases now call onProfileClick to open drawer
-                if (!profileImage.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = profileImage,
+                // -------------------------------------------------
+                // Avatar – either the real image or a placeholder
+                // -------------------------------------------------
+                if (profileImage != null) {
+                    Image(
+                        painter = rememberAsyncImagePainter(profileImage),
                         contentDescription = "Profile Image",
                         modifier = Modifier
                             .size(40.dp)
@@ -65,8 +78,8 @@ fun TopBar(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color.LightGray.copy(alpha = 0.4f))
-                            .clickable { onProfileClick() } // ✅ open drawer, not album
+                            .background(placeholderBg)   // matches the current theme
+                            .clickable { onProfileClick() }
                     )
                 }
 
@@ -87,10 +100,9 @@ fun TopBar(
                     )
                 }
             } else {
+                // Keep layout stable – an invisible spacer of the same size
                 Spacer(modifier = Modifier.size(0.dp))
             }
         }
     )
 }
-
-

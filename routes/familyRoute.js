@@ -38,26 +38,20 @@ router.post("/update-location", async (req, res) => {
 
     if (lat === DEFAULT_LAT && lon === DEFAULT_LON) {
         console.warn(`⚠️ Ignoring default fallback coordinates for child ${childUID}`);
-        return res.json({
-            success: false,
-            message: "Default coordinates ignored"
-        });
+        return res.json({ success: false, message: "Default coordinates ignored" });
     }
 
     console.log("📍 Incoming:", req.body);
 
-    // respond fast, process in background
-    res.json({
-        success: true,
-        message: "Location received, processing in background"
-    });
+    // Respond fast, process in background
+    res.json({ success: true, message: "Location received, processing in background" });
 
     (async () => {
         try {
             const now = Date.now();
 
             // -------------------------
-            // 1️⃣ Calculate speed (m/s) using last saved in child_locations
+            // 1️⃣ Calculate speed (m/s)
             // -------------------------
             const lastRef = db.collection("child_locations").doc(childUID);
             const lastDoc = await lastRef.get();
@@ -67,72 +61,68 @@ router.post("/update-location", async (req, res) => {
                 const last = lastDoc.data();
                 const lastTs = last.timestamp || now;
                 const dt = Math.max(1, (now - lastTs) / 1000); // seconds
-                const dist = getDistance(last.lat, last.lon, lat, lon); // meters
-                speedMS = dist / dt;
+
+                const distKm = getDistance(last.lat, last.lon, lat, lon);
+                const distM = distKm * 1000; // ✅ meters
+
+                speedMS = distM / dt;
             }
 
-            // persist latest simple location for speed calc and debugging
             await lastRef.set({ lat, lon, timestamp: now }, { merge: true });
 
             // -------------------------
-            // 2️⃣ Load previous child_position doc (zone states, timers, etc.)
+            // 2️⃣ Load previous child_position
             // -------------------------
             const childRef = db.collection("child_position").doc(childUID);
             const childDoc = await childRef.get();
             const childData = childDoc.exists ? childDoc.data() : {};
 
-            const prevZones = childData?.zoneStates || {};           // { zoneId: "INSIDE" }
-            const lastAlerts = childData?.lastAlertTimes || {};      // { zoneId: timestamp }
-            const timeInZoneRaw = childData?.timeInZoneRaw || {};    // { zoneId: ms }
-            const exitCandidates = childData?.exitCandidates || {};  // { zoneId: candidateTs }
-            const lastUpdatedRaw = childData?.lastUpdatedRaw || now; // timestamp of previous processing
+            const prevZones = childData.zoneStates || {};
+            const lastAlerts = childData.lastAlertTimes || {};
+            const timeInZoneRaw = childData.timeInZoneRaw || {};
+            const exitCandidates = childData.exitCandidates || {};
+            const lastUpdatedRaw = childData.lastUpdatedRaw || now;
 
             // -------------------------
-            // 3️⃣ Load zones for this parent
+            // 3️⃣ Load zones
             // -------------------------
             const zonesSnap = await db.collection("Parent_registered")
                 .doc(parentId)
                 .collection("dangerZones")
                 .get();
 
-            // thresholds & config
-            const APPROACH_BUFFER = 20;            // meters
-            const PROLONGED_MS = 5 * 60 * 1000;   // 5 minutes
-            const EXIT_CONFIRM_MS = 3 * 1000;     // 3 seconds to confirm exit (debounce)
-            const WARNING = 50;                   // notification proximity buffer
-            const COOLDOWN = 10 * 60 * 1000;      // 10 minutes alert cooldown
+            // Config
+            const APPROACH_BUFFER = 20;          // meters
+            const PROLONGED_MS = 5 * 60 * 1000;  // 5 min
+            const EXIT_CONFIRM_MS = 3 * 1000;    // 3 sec
+            const COOLDOWN = 10 * 60 * 1000;     // 10 min
 
             const newStates = {};
             const newAlertTimes = { ...lastAlerts };
 
-            // ensure timeInZoneRaw has entries for all zones
             for (const z of zonesSnap.docs) {
-                const zid = z.id;
-                if (!timeInZoneRaw[zid]) timeInZoneRaw[zid] = 0;
+                if (!timeInZoneRaw[z.id]) timeInZoneRaw[z.id] = 0;
             }
 
-            // compute delta since last update for accumulation
-            const deltaSinceLast = Math.max(0, now - (lastUpdatedRaw || now));
+            const deltaSinceLast = Math.max(0, now - lastUpdatedRaw);
 
             // -------------------------
-            // 4️⃣ Process each zone
+            // 4️⃣ Process zones
             // -------------------------
             for (const zoneDoc of zonesSnap.docs) {
                 const zone = zoneDoc.data();
                 const zoneId = zone.zoneId || zoneDoc.id;
-                if (!timeInZoneRaw[zoneId]) timeInZoneRaw[zoneId] = 0;
 
                 const zoneLat = zone.lat;
                 const zoneLon = zone.lon;
-                const radius = zone.radius;
-                if (typeof zoneLat !== "number" || typeof zoneLon !== "number" || typeof radius !== "number") {
-                    console.warn(`Skipping malformed zone ${zoneDoc.id}`);
-                    continue;
-                }
+                const radius = zone.radius; // meters
 
-                const distance = getDistance(lat, lon, zoneLat, zoneLon); // meters
+                if ([zoneLat, zoneLon, radius].some(v => typeof v !== "number")) continue;
 
-                // risk calculation (AI)
+                // 🔥 OPTION A FIX: convert KM → METERS
+                const distanceKm = getDistance(lat, lon, zoneLat, zoneLon);
+                const distance = distanceKm * 1000;
+
                 const { risk, level, reasons } = calculateRisk({
                     speed: speedMS,
                     hour: new Date().getHours(),
@@ -141,47 +131,38 @@ router.post("/update-location", async (req, res) => {
                     timeInZone: timeInZoneRaw[zoneId] || 0
                 });
 
-                // Determine state with robust ordering and exit confirmation
                 const prevState = prevZones[zoneId] || "OUTSIDE";
                 let state = prevState;
 
                 if (distance <= radius) {
                     state = "INSIDE";
-                    if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
+                    delete exitCandidates[zoneId];
                 } else if (distance <= radius + APPROACH_BUFFER) {
                     state = "APPROACHING";
-                    if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
+                    delete exitCandidates[zoneId];
                 } else if (prevState === "INSIDE" || prevState === "PROLONGED") {
                     const candidateTs = exitCandidates[zoneId] || now;
                     if (!exitCandidates[zoneId]) {
                         exitCandidates[zoneId] = candidateTs;
-                        state = prevState;
-                    } else {
-                        if (now - candidateTs >= EXIT_CONFIRM_MS) {
-                            state = "EXITED";
-                            delete exitCandidates[zoneId];
-                        } else {
-                            state = prevState;
-                        }
+                    } else if (now - candidateTs >= EXIT_CONFIRM_MS) {
+                        state = "EXITED";
+                        delete exitCandidates[zoneId];
                     }
                 } else {
                     state = "OUTSIDE";
-                    if (exitCandidates[zoneId]) delete exitCandidates[zoneId];
+                    delete exitCandidates[zoneId];
                 }
 
-                // Accumulate timeInZoneRaw
                 if (prevState === "INSIDE" || prevState === "PROLONGED") {
-                    timeInZoneRaw[zoneId] = (timeInZoneRaw[zoneId] || 0) + deltaSinceLast;
+                    timeInZoneRaw[zoneId] += deltaSinceLast;
                 }
 
-                // Determine PROLONGED
-                if ((state === "INSIDE" || state === "PROLONGED") && (timeInZoneRaw[zoneId] >= PROLONGED_MS)) {
+                if ((state === "INSIDE" || state === "PROLONGED") && timeInZoneRaw[zoneId] >= PROLONGED_MS) {
                     state = "PROLONGED";
                 }
 
-                console.log(`Zone ${zoneId} (${zone.name}) dist=${Math.round(distance)}m r=${radius} prev=${prevState} -> new=${state} timeInZoneMs=${timeInZoneRaw[zoneId]}`);
+                console.log(`Zone ${zone.name} dist=${Math.round(distance)}m radius=${radius}m ${prevState}→${state}`);
 
-                // Alert
                 const shouldAlert =
                     risk >= 70 ||
                     now - (lastAlerts[zoneId] || 0) > COOLDOWN ||
@@ -219,11 +200,11 @@ router.post("/update-location", async (req, res) => {
             }
 
             // -------------------------
-            // 5️⃣ Persist results
+            // 5️⃣ Persist
             // -------------------------
             const timeInZoneFormatted = {};
-            for (const zoneId in timeInZoneRaw) {
-                timeInZoneFormatted[zoneId] = formatDuration(timeInZoneRaw[zoneId]);
+            for (const zid in timeInZoneRaw) {
+                timeInZoneFormatted[zid] = formatDuration(timeInZoneRaw[zid]);
             }
 
             await childRef.set({
@@ -232,7 +213,6 @@ router.post("/update-location", async (req, res) => {
                 lon,
                 speedMS,
                 speedUnit: "m/s",
-                lastUpdated: formatDuration(now),
                 lastUpdatedRaw: now,
                 zoneStates: newStates,
                 lastAlertTimes: newAlertTimes,

@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">KidsControl</string>
+    <string name="app_logo_description">Deskripsi logo aplikasi</string>
+    <string name="email_subject_support">Sokongan KidsControlApp</string>
+
+    <!-- Screen titles -->
+    <string name="title_about_app">Mengenai Aplikasi</string>
+    <string name="title_dashboard">Papan Pemuka</string>
+    <string name="title_inbox">Peti Masuk</string>
+    <string name="title_profile">Profil</string>
+    <string name="title_login">Log Masuk</string>
+    <string name="title_signup">Daftar</string>
+    <string name="title_parent_choice">Selamat Datang, Ibu Bapa</string>
+    <string name="title_enter_child_uid">Masukkan UID Anak</string>
+    <string name="title_safety_insights">Pandangan Keselamatan</string>
+    <string name="title_danger_zone">Urus Zon Bahaya</string>
+    <string name="title_delete_zones">Padam Zon Bahaya</string>
+    <string name="title_report_issue">Laporkan Isu</string>
+    <string name="title_support">Sokongan</string>
+    <string name="title_profile_details">Butiran Profil</string>
+    <string name="title_change_password">Tukar Kata Laluan</string>
+    <string name="title_language">Bahasa</string>
+
+    <string name="content_desc_back">Kembali</string>
+    <string name="content_desc_dashboard">Papan Pemuka</string>
+    <string name="content_desc_inbox">Peti Masuk</string>
+    <string name="content_desc_profile">Profil</string>
+
+    <string name="label_dashboard">Papan Pemuka</string>
+    <string name="label_inbox">Peti Masuk</string>
+    <string name="label_profile">Profil</string>
+    <string name="content_desc_profile_avatar">Avatar profil</string>
+
+    <string name="toast_location_permission_required">Kebenaran lokasi diperlukan</string>
+    <string name="title_dashboard_menu">Menu Papan Pemuka</string>
+    <string name="content_desc_start_stop_tracking">Mula/Hentikan Penjejakan</string>
+
+    <string name="btn_manage_danger_zones">Urus Zon Bahaya</string>
+    <string name="btn_child_safety_insights">Maklumat Keselamatan Anak</string>
+    <string name="btn_start">Mula</string>
+    <string name="btn_stop">Hentikan</string>
+
+
+    <string name="label_status">Status: %1$s</string>
+
+    <string name="text_no_new_messages">Tiada mesej baru</string>
+
+    <string name="content_desc_save_language">Simpan bahasa</string>
+
+    <string name="content_desc_language">Tukar bahasa</string>
+
+    <string name="title_faq">Soalan Lazim</string>
+
+    <string name="notif_channel_name">Perkhidmatan Zon Bahaya</string>
+    <string name="notif_title">KidsControl — Penjejakan</string>
+    <string name="notif_default_content">Menjejaki anak…</string>
+
+    <string name="default_fcm_title">Amaran Zon Bahaya</string>
+    <string name="default_fcm_body">Anak anda berada dalam atau menghampiri zon bahaya!</string>
+
+    <string name="faq_q_reset_password">Bagaimana cara menukar kata laluan?</string>
+    <string name="faq_a_reset_password">Tekan Kata Laluan dalam Tetapan → Tukar Kata Laluan. Anda akan menerima e‑mail pengesahan.</string>
+
+    <string name="faq_q_dark_mode">Mengapa Mod Gelap tidak berubah?</string>
+    <string name="faq_a_dark_mode">Pastikan suis dalam Tetapan → Mod Gelap diaktifkan. Mulakan semula aplikasi jika perlu.</string>
+
+    <string name="faq_q_contact_support">Bagaimana cara menghubungi sokongan?</string>
+    <string name="faq_a_contact_support">Gunakan butang Email Kami di bawah atau lawati halaman sokongan di laman web kami.</string>
+
+    <string name="btn_email_us">Email Kami</string>
+    <string name="btn_report_bug">Laporkan Bug</string>
+
+    <string name="dialog_bug_title">Laporkan bug / beri maklum balas</string>
+    <string name="btn_send">Hantar</string>
+
+    <string name="footer_version">Versi 1.0.0</string>
+    <string name="content_desc_email">Hantar e‑mail</string>
+    <string name="content_desc_bug_report">Laporkan bug</string>
+
+    <string name="title_sign_up">Daftar</string>
+    <string name="label_full_name">Nama Penuh</string>
+    <string name="label_phone">Telefon</string>
+    <string name="label_confirm_password">Sahkan Kata Laluan</string>
+    <string name="btn_sign_up">Daftar</string>
+    <string name="toast_all_fields_required">Semua medan diperlukan</string>
+    <string name="toast_passwords_mismatch">Kata laluan tidak sepadan</string>
+    <string name="toast_signup_success">Pendaftaran berjaya! ID Ibu Bapa: %1$s</string>
+    <string name="toast_signup_failed">Gagal menyimpan ibu bapa: %1$s</string>
+
+    <string name="priority_low">Rendah</string>
+    <string name="priority_medium">Sederhana</string>
+    <string name="priority_high">Tinggi</string>
+    <string name="btn_add_screenshot">Tambah tangkapan skrin</string>
+    <string name="btn_submit">Hantar</string>
+    <string name="content_desc_add_screenshot">Tambah tangkapan skrin</string>
+
+    <string name="label_legal_name">Nama Sah</string>
+    <string name="label_country">Negara</string>
+    <string name="label_user_id">ID Pengguna</string>
+    <string name="label_phone_number">Nombor Telefon</string>
+    <string name="btn_save_change">Simpan Perubahan</string>
+    <string name="toast_profile_saved">Profil disimpan</string>
+    <string name="toast_profile_save_failed">Gagal menyimpan profil</string>
+
+    <string name="label_current_password">Kata laluan semasa</string>
+    <string name="label_new_password">Kata laluan baru</string>
+    <string name="label_confirm_new_password">Sahkan kata laluan baru</string>
+    <string name="btn_save">Simpan</string>
+    <string name="toast_password_updated">Kata laluan dikemas kini</string>
+
+    <string name="title_welcome_parent">Selamat datang, Ibu bapa</string>
+    <string name="subtitle_choose_continue">Pilih cara anda ingin meneruskan</string>
+    <string name="btn_add_new_child">Tambah Anak Baru</string>
+    <string name="btn_use_existing_child">Gunakan Anak Sedia Ada</string>
+
+    <string name="label_password">Kata laluan</string>
+    <string name="toast_enter_credentials">Masukkan e‑mel &amp; kata laluan</string>
+    <string name="btn_sign_in">Log masuk</string>
+    <string name="btn_logging_in">Masuk…</string>
+    <string name="text_no_account">Tiada akaun? Daftar</string>
+    <string name="error_invalid_credentials">E‑mel atau kata laluan tidak sah</string>
+
+    <string name="label_child_uid">UID Kanak‑Kanak</string>
+    <string name="msg_loading_parent">Memuatkan maklumat ibu bapa…</string>
+    <string name="btn_checking">Menyemak…</string>
+    <string name="btn_add_child">Tambah Kanak‑Kanak</string>
+
+    <string name="toast_enter_uid">Sila masukkan UID</string>
+    <string name="toast_parent_not_loaded">Ibu bapa belum dimuatkan, tunggu sebentar…</string>
+    <string name="toast_invalid_uid">UID kanak‑kanak tidak sah</string>
+    <string name="toast_already_linked">Kanak‑kanak sudah dipautkan! Membuka papan pemuka…</string>
+    <string name="toast_already_linked_other">Kanak‑kanak sudah dipautkan ke ibu bapa lain.</string>
+    <string name="toast_link_success">Kanak‑kanak berjaya dipautkan!</string>
+    <string name="toast_error">Ralat: %1$s</string>
+
+    <string name="title_manage_danger_zones">Urus Zon Bahaya</string>
+    <string name="msg_no_zones_added">Tiada zon bahaya ditambah.</string>
+    <string name="title_delete_danger_zone">Padam Zon Bahaya</string>
+    <string name="msg_confirm_delete_zone">Anda pasti mahu memadam “%1$s”?</string>
+    <string name="msg_zone_deleted">Zon “%1$s” dipadam</string>
+    <string name="msg_delete_failed">Gagal: %1$s</string>
+    <string name="btn_delete">Padam</string>
+    <string name="btn_cancel">Batal</string>
+    <string name="label_id">ID: %1$s</string>
+    <string name="content_desc_delete">Padam</string>
+
+    <string name="marker_current_location">Lokasi semasa</string>
+
+
+    <string name="label_last_updated">Terakhir dikemas kini: %1$s</string>
+    <string name="label_lat">Lat: %1$s</string>
+    <string name="label_lon">Lon: %1$s</string>
+    <string name="label_battery">Bateri: %1$s%%</string>
+    <string name="label_speed">Kelajuan: %1$s m/s</string>
+
+    <string name="title_zone_states">Keadaan Zon</string>
+    <string name="title_recent_alerts">Amaran Terkini</string>
+
+    <string name="msg_no_zones_recorded">Tiada zon direkodkan.</string>
+    <string name="content_desc_manage_zones">Urus Zon</string>
+    <string name="title_new_zone">Zon Baru</string>
+
+    <string name="label_state">Keadaan: %1$s</string>
+    <string name="label_duration">Tempoh: %1$s</string>
+
+    <!-- Labels / Input fields -->
+    <string name="label_zone_name">Nama Zon</string>
+    <string name="label_radius">Jejari: %d m</string>
+    <string name="label_email">E‑mail</string>
+    <string name="label_subject">Subjek</string>
+    <string name="label_description">Penerangan</string>
+    <string name="label_priority">Keutamaan</string>
+    <string name="label_add_screenshot">Tambah tangkapan skrin</string>
+    <string name="label_save_change">Simpan Perubahan</string>
+    <string name="label_save">Simpan</string>
+    <string name="label_cancel">Batal</string>
+    <string name="label_enter_current_password">Masukkan kata laluan semasa</string>
+    <string name="label_enter_new_password">Masukkan kata laluan baru</string>
+    <string name="label_enter_new_password_confirmation">Sahkan kata laluan baru</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_confirm_add_zone">Sahkan Zon Bahaya</string>
+    <string name="msg_confirm_add_zone">Anda pasti mahu menambah zon bahaya ini?</string>
+
+    <!-- Alerts -->
+    <string name="alert_approaching">⚠️ Anak sedang menghampiri zon bahaya</string>
+    <string name="alert_inside">🚨 Anak berada DI DALAM zon bahaya!</string>
+    <string name="alert_prolonged">⏱ Anak berada terlalu lama di dalam zon</string>
+    <string name="alert_exited">✅ Anak keluar daripada zon bahaya</string>
+
+    <!-- Misc UI -->
+    <string name="msg_parent_not_logged_in">Ibu bapa belum log masuk! Sila log masuk semula.</string>
+    <string name="msg_no_danger_zones">Tiada zon bahaya ditambah.</string>
+    <string name="msg_no_alerts">Tiada amaran.</string>
+    <string name="msg_no_zones">Tiada zon direkodkan.</string>
+    <string name="msg_no_new_messages">Tiada mesej baru</string>
+    <string name="msg_loading_dashboard">Memuat Papan Pemuka…</string>
+    <string name="msg_loading_user_info">Memuatkan maklumat pengguna…</string>
+    <string name="msg_enter_child_uid">Sila masukkan UID</string>
+    <string name="msg_parent_not_loaded">Ibu bapa belum dimuatkan, tunggu sebentar…</string>
+    <string name="msg_invalid_child_uid">UID anak tidak sah</string>
+    <string name="msg_child_already_linked">Anak sudah dipautkan! Membuka papan pemuka…</string>
+    <string name="msg_child_linked_to_other">Anak telah dipautkan kepada ibu bapa lain.</string>
+    <string name="msg_child_link_success">Anak dipautkan dengan berjaya!</string>
+    <string name="msg_tracking_off">Penjejakan dimatikan atau menunggu lokasi anak.</string>
+    <string name="msg_battery">Bateri: %1$s%%</string>
+    <string name="msg_status">Status: %1$s</string>
+
+    <!-- About‑App description -->
+    <string name="about_description">
+        Kids Control membantu ibu bapa memantau dan mengurus penggunaan peranti anak mereka,
+        menetapkan zon selamat, dan menerima amaran masa nyata.
+    </string>
+
+    <!-- Language list -->
+    <string name="language_system">Lalai sistem</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_malay">Bahasa Melayu</string>
+    <string name="language_chinese_simplified">简体中文</string>
+    <string name="language_chinese_traditional">繁體中文</string>
+
+    <!-- Profile placeholder -->
+    <string name="profile_username">Nama pengguna</string>
+
+    <!-- Notification strings -->
+    <string name="notification_title">KidsControl — Penjejakan</string>
+    <string name="notification_text">Menjejaki anak…</string>
+
+    <!-- About‑App features -->
+    <string name="feature_location">Penjejakan lokasi masa nyata</string>
+    <string name="feature_safe_zone">Amaran zon selamat tersuai</string>
+    <string name="feature_statistics">Statistik penggunaan &amp; insight</string>
+    <string name="feature_security">Kawalan ibu bapa selamat</string>
+    <string name="feature_multilingual">Sokongan berbilang bahasa</string>
+
+    <!-- Buttons on About‑App -->
+    <string name="title_contact_support">Hubungi Sokongan</string>
+    <string name="title_visit_website">Lawati Laman Web Kami</string>
+    <string name="title_open_source_licenses">Lesen Sumber Terbuka</string>
+    <string name="title_terms_of_service">Terma Perkhidmatan</string>
+    <string name="title_privacy_policy">Polisi Privasi</string>
+
+    <!-- Settings -->
+    <string name="settings_profile_details">Butiran Profil</string>
+    <string name="settings_password">Kata Laluan</string>
+    <string name="settings_dark_mode">Mod Gelap</string>
+    <string name="settings_support">Sokongan</string>
+    <string name="settings_report_issue">Laporkan Isu</string>
+    <string name="settings_about_app">Mengenai Aplikasi</string>
+    <string name="settings_language">Bahasa</string>
+    <string name="settings_logout">Log Keluar</string>
+    <string name="back">Kembali</string>
+
+    <string name="status_online">Dalam talian</string>
+    <string name="status_offline">Luar talian</string>
+
+    <!-- Toast / Snackbar -->
+    <string name="msg_parent_missing">ID ibu bapa tiada!</string>
+    <string name="msg_child_missing">UID anak tiada!</string>
+    <string name="msg_zone_name_blank">Nama zon tidak boleh kosong.</string>
+    <string name="msg_radius_invalid">Jejari mesti > 0.</string>
+    <string name="msg_zone_added">Zon bahaya ditambah!</string>
+    <string name="msg_zone_failed">Gagal: %1$s</string>
+    <string name="msg_error_generic">Ralat: %1$s</string>
+
+    <string name="msg_password_updated">Kata laluan dikemas kini</string>
+    <string name="msg_password_update_failed">Gagal mengemas kini kata laluan</string>
+    <string name="msg_profile_saved">Profil disimpan</string>
+    <string name="msg_profile_save_failed">Gagal menyimpan profil</string>
+    <string name="msg_signup_success">Pendaftaran berjaya! ID ibu bapa: %1$s</string>
+    <string name="msg_all_fields_required">Semua ruangan diperlukan</string>
+    <string name="msg_passwords_mismatch">Kata laluan tidak sepadan</string>
+    <string name="error_email_password_required">E‑mail &amp; Kata laluan diperlukan</string>
+    <string name="error_passwords_do_not_match">Kata laluan tidak sepadan</string>
+    <string name="error_email_not_registered">E‑mail tidak berdaftar</string>
+    <string name="error_incorrect_password">Kata laluan tidak betul</string>
+    <string name="error_login_failed">Log masuk gagal: %1$s</string>
+    <string name="error_password_too_short">Kata laluan mesti sekurang‑kurangnya 6 aksara</string>
+    <string name="error_user_not_logged_in">Pengguna belum log masuk</string>
+    <string name="error_current_password_incorrect">Kata laluan semasa tidak betul</string>
+
+    <!-- Notification channel / alert strings -->
+    <string name="notif_title_tracking">KidsControl — Penjejakan</string>
+    <string name="notif_text_tracking">Menjejaki anak…</string>
+    <string name="notif_channel_dangerzone">Perkhidmatan DangerZone</string>
+    <string name="notif_channel_fcm">Amaran Zon Bahaya</string>
+    <string name="notif_danger_alert_title">Amaran Zon Bahaya</string>
+    <string name="toast_fcm_message">%1$s: %2$s&#10;%3$s: %4$s</string>
+
+    <string name="version_format">Versi %1$s</string>
+
+</resources>

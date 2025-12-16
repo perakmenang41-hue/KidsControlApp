@@ -1,15 +1,19 @@
 package com.example.kidscontrolapp.tracking
 
-import android.content.Context
-import com.example.kidscontrolapp.viewmodel.ChildLocationViewModel
 import kotlinx.coroutines.*
 
 object TrackingManager {
 
     private var job: Job? = null
 
+    /**
+     * Starts a coroutine that calls `sendLocationToBackend` every 5 seconds.
+     *
+     * @param handler  Any implementation of `LocationHandler`
+     *                 (UI ViewModel or Service helper).
+     */
     fun startTracking(
-        viewModel: ChildLocationViewModel,
+        handler: LocationHandler,
         parentId: String,
         childUID: String
     ) {
@@ -17,8 +21,8 @@ object TrackingManager {
 
         job = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
-                viewModel.sendLocationToBackend(parentId, childUID)
-                delay(5000) // every 5 seconds
+                handler.sendLocationToBackend(parentId, childUID)
+                delay(5_000)   // 5 seconds
             }
         }
     }
@@ -30,4 +34,3 @@ object TrackingManager {
 
     fun isTracking(): Boolean = job != null
 }
-

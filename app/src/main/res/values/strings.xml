@@ -1,3 +1,305 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">KidsControlApp</string>
+
+    <!-- App name -->
+    <string name="app_name">KidsControl</string>
+    <string name="app_logo_description">App logo</string>
+    <string name="email_subject_support">KidsControlApp Support</string>
+
+    <!-- ==================== Screen titles ==================== -->
+    <string name="title_about_app">About the App</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_inbox">Inbox</string>
+    <string name="title_profile">Profile</string>
+    <string name="title_login">Login</string>
+    <string name="title_signup">Sign Up</string>
+    <string name="title_parent_choice">Welcome, Parent</string>
+    <string name="title_enter_child_uid">Enter Child UID</string>
+    <string name="title_safety_insights">Safety Insights</string>
+    <string name="title_danger_zone">Manage Danger Zones</string>
+    <string name="title_delete_zones">Delete Danger Zones</string>
+    <string name="title_report_issue">Report an Issue</string>
+    <string name="title_support">Support</string>
+    <string name="title_profile_details">Profile Details</string>
+    <string name="title_change_password">Change Password</string>
+    <string name="title_language">Language</string>
+
+    <!-- Navigation -->
+    <string name="content_desc_back">Back</string>
+    <string name="content_desc_profile_avatar">Profile avatar</string>
+
+    <string name="toast_location_permission_required">Location permission required</string>
+
+    <string name="title_dashboard_menu">Dashboard Menu</string>
+    <string name="content_desc_start_stop_tracking">Start/Stop tracking</string>
+
+    <string name="btn_manage_danger_zones">Manage Danger Zones</string>
+    <string name="btn_child_safety_insights">Child Safety Insights</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
+
+    <string name="label_status">Status: %1$s</string>
+
+    <string name="title_manage_danger_zones">Manage Danger Zones</string>
+    <string name="msg_no_zones_added">No danger zones added.</string>
+    <string name="title_delete_danger_zone">Delete Danger Zone</string>
+    <string name="msg_confirm_delete_zone">Are you sure you want to delete "%1$s"?</string>
+    <string name="msg_zone_deleted">Zone "%1$s" deleted</string>
+    <string name="msg_delete_failed">Failed: %1$s</string>
+    <string name="btn_delete">Delete</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="label_id">ID: %1$s</string>
+    <string name="content_desc_delete">Delete</string>
+
+    <string name="marker_current_location">Current location</string>
+
+    <string name="text_no_new_messages">No new messages</string>
+
+    <string name="content_desc_save_language">Save language</string>
+
+    <string name="content_desc_language">Change language</string>
+
+    <string name="title_sign_up">Sign Up</string>
+    <string name="label_full_name">Full Name</string>
+    <string name="label_phone">Phone</string>
+    <string name="label_confirm_password">Confirm Password</string>
+    <string name="btn_sign_up">Sign Up</string>
+    <string name="toast_all_fields_required">All fields are required</string>
+    <string name="toast_passwords_mismatch">Passwords do not match</string>
+    <string name="toast_signup_success">Sign Up Successful! Parent ID: %1$s</string>
+    <string name="toast_signup_failed">Failed to save parent: %1$s</string>
+
+    <string name="title_faq">Frequently Asked Questions</string>
+
+    <string name="notif_channel_name">DangerZone Service</string>
+    <string name="notif_title">KidsControl — Tracking</string>
+    <string name="notif_default_content">Tracking child...</string>
+
+    <string name="default_fcm_title">Danger Zone Alert</string>
+    <string name="default_fcm_body">Your child is in or approaching a danger zone!</string>
+
+    <string name="faq_q_reset_password">How do I reset my password?</string>
+    <string name="faq_a_reset_password">Tap Password in Settings → Change Password. You’ll receive a verification email.</string>
+
+    <string name="faq_q_dark_mode">Why is Dark Mode not changing?</string>
+    <string name="faq_a_dark_mode">Make sure the toggle in Settings → Dark Mode is enabled. Restart app if needed.</string>
+
+    <string name="faq_q_contact_support">How can I contact support?</string>
+    <string name="faq_a_contact_support">Use the Email Us button below or visit the support page on our website.</string>
+
+    <string name="btn_email_us">Email Us</string>
+    <string name="btn_report_bug">Report Bug</string>
+
+    <string name="dialog_bug_title">Report a bug / give feedback</string>
+    <string name="btn_send">Send</string>
+
+    <string name="footer_version">Version 1.0.0</string>
+    <string name="content_desc_email">Send email</string>
+    <string name="content_desc_bug_report">Report a bug</string>
+
+    <string name="priority_low">Low</string>
+    <string name="priority_medium">Medium</string>
+    <string name="priority_high">High</string>
+    <string name="btn_add_screenshot">Add screenshot</string>
+    <string name="btn_submit">Submit</string>
+    <string name="content_desc_add_screenshot">Add screenshot</string>
+
+    <string name="label_legal_name">Legal Name</string>
+    <string name="label_country">Country</string>
+    <string name="label_user_id">User ID</string>
+    <string name="label_phone_number">Phone Number</string>
+    <string name="btn_save_change">Save Change</string>
+    <string name="toast_profile_saved">Profile saved</string>
+    <string name="toast_profile_save_failed">Failed to save profile</string>
+
+    <string name="label_current_password">Current password</string>
+    <string name="label_new_password">New password</string>
+    <string name="label_confirm_new_password">Confirm new password</string>
+    <string name="btn_save">Save</string>
+    <string name="toast_password_updated">Password updated</string>
+
+    <string name="back">Back</string>
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+
+
+
+    <string name="title_welcome_parent">Welcome, Parent</string>
+    <string name="subtitle_choose_continue">Choose how you want to continue</string>
+    <string name="btn_add_new_child">Add New Child</string>
+    <string name="btn_use_existing_child">Use Existing Child</string>
+
+
+    <string name="label_password">Password</string>
+    <string name="toast_enter_credentials">Enter email &amp; password</string>
+    <string name="btn_sign_in">Sign In</string>
+    <string name="btn_logging_in">Logging in...</string>
+    <string name="text_no_account">Don\'t have an account? Sign Up</string>
+    <string name="error_invalid_credentials">Invalid email or password</string>
+
+    <string name="label_child_uid">Child UID</string>
+    <string name="msg_loading_parent">Loading parent info...</string>
+    <string name="btn_checking">Checking...</string>
+    <string name="btn_add_child">Add Child</string>
+
+    <string name="toast_enter_uid">Please enter a UID</string>
+    <string name="toast_parent_not_loaded">Parent not loaded yet, wait a moment...</string>
+    <string name="toast_invalid_uid">Invalid Child UID</string>
+    <string name="toast_already_linked">Child already linked! Opening dashboard...</string>
+    <string name="toast_already_linked_other">Child is already linked to another parent.</string>
+    <string name="toast_link_success">Child linked successfully!</string>
+    <string name="toast_error">Error: %1$s</string>
+
+    <string name="content_desc_dashboard">Dashboard</string>
+    <string name="content_desc_inbox">Inbox</string>
+    <string name="content_desc_profile">Profile</string>
+
+    <string name="label_dashboard">Dashboard</string>
+    <string name="label_inbox">Inbox</string>
+    <string name="label_profile">Profile</string>
+
+    <!-- ==================== New keys for DangerZoneScreen ==================== -->
+    <string name="content_desc_manage_zones">Manage Zones</string>
+    <string name="title_new_zone">New Zone</string>
+
+    <!-- Summary‑card labels (place‑holders) -->
+    <string name="label_last_updated">Last Updated: %1$s</string>
+    <string name="label_lat">Lat: %1$s</string>
+    <string name="label_lon">Lon: %1$s</string>
+    <string name="label_battery">Battery: %1$s%%</string>
+    <string name="label_speed">Speed: %1$s m/s</string>
+
+    <!-- Section titles -->
+    <string name="title_zone_states">Zone States</string>
+    <string name="title_recent_alerts">Recent Alerts</string>
+
+    <!-- Empty‑state messages -->
+    <string name="msg_no_zones_recorded">No zones recorded.</string>
+
+    <!-- Zone‑card labels -->
+    <string name="label_state">State: %1$s</string>
+    <string name="label_duration">Duration: %1$s</string>
+
+    <!-- ==================== Labels / Input fields ==================== -->
+    <string name="label_zone_name">Zone Name</string>
+    <string name="label_radius">Radius: %d m</string>
+    <string name="label_email">Email</string>
+    <string name="label_subject">Subject</string>
+    <string name="label_description">Description</string>
+    <string name="label_priority">Priority</string>
+    <string name="label_add_screenshot">Add screenshot</string>
+    <string name="label_save_change">Save Change</string>
+    <string name="label_save">Save</string>
+    <string name="label_cancel">Cancel</string>
+    <string name="label_enter_current_password">Enter current password</string>
+    <string name="label_enter_new_password">Enter new password</string>
+    <string name="label_enter_new_password_confirmation">Confirm new password</string>
+
+    <!-- ==================== Dialog titles / texts ==================== -->
+    <string name="dialog_confirm_add_zone">Confirm Danger Zone</string>
+    <string name="msg_confirm_add_zone">Are you sure you want to add this danger zone?</string>
+
+    <!-- ==================== Alerts (DangerZoneAlertBox) ==================== -->
+    <string name="alert_approaching">⚠️ Child is approaching a danger zone</string>
+    <string name="alert_inside">🚨 Child is INSIDE the danger zone!</string>
+    <string name="alert_prolonged">⏱ Child stayed too long inside the zone</string>
+    <string name="alert_exited">✅ Child exited the danger zone</string>
+
+    <!-- ==================== Misc UI messages ==================== -->
+    <string name="msg_parent_not_logged_in">Parent not logged in! Please log in again.</string>
+    <string name="msg_no_danger_zones">No danger zones added.</string>
+    <string name="msg_no_alerts">No alerts.</string>
+    <string name="msg_no_zones">No zones recorded.</string>
+    <string name="msg_no_new_messages">No new messages</string>
+    <string name="msg_loading_dashboard">Loading Dashboard…</string>
+    <string name="msg_loading_user_info">Loading user info…</string>
+    <string name="msg_enter_child_uid">Please enter a UID</string>
+    <string name="msg_parent_not_loaded">Parent not loaded yet, wait a moment...</string>
+    <string name="msg_invalid_child_uid">Invalid Child UID</string>
+    <string name="msg_child_already_linked">Child already linked! Opening dashboard…</string>
+    <string name="msg_child_linked_to_other">Child is already linked to another parent.</string>
+    <string name="msg_child_link_success">Child linked successfully!</string>
+    <string name="msg_tracking_off">Tracking is off or waiting for child location.</string>
+    <string name="msg_battery">Battery: %1$s%%</string>
+    <string name="msg_status">Status: %1$s</string>
+
+    <!-- ==================== About‑App description ==================== -->
+    <string name="about_description">Kids Control helps parents monitor and manage their children\'s device usage, set safe zones, and stay informed with real‑time alerts.</string>
+
+    <!-- ==================== Language list labels ==================== -->
+    <string name="language_system">System default</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+    <string name="language_french">Français</string>
+    <string name="language_malay">Bahasa Melayu</string>
+    <string name="language_chinese_simplified">简体中文</string>
+    <string name="language_chinese_traditional">繁體中文</string>
+
+    <!-- ==================== Profile placeholder ==================== -->
+    <string name="profile_username">Profile username</string>
+
+    <!-- ==================== Notification strings ==================== -->
+    <string name="notification_title">KidsControl — Tracking</string>
+    <string name="notification_text">Tracking child…</string>
+
+    <!-- ==================== About‑App feature list ==================== -->
+    <string name="feature_location">Real‑time location tracking</string>
+    <string name="feature_safe_zone">Custom safe‑zone alerts</string>
+    <string name="feature_statistics">Usage statistics &amp; insights</string>
+    <string name="feature_security">Secure parental controls</string>
+    <string name="feature_multilingual">Multi‑language support</string>
+
+    <!-- ==================== Buttons on About‑App ==================== -->
+    <string name="title_contact_support">Contact Support</string>
+    <string name="title_visit_website">Visit Our Website</string>
+    <string name="title_open_source_licenses">Open‑source Licenses</string>
+    <string name="title_terms_of_service">Terms of Service</string>
+    <string name="title_privacy_policy">Privacy Policy</string>
+
+    <!-- ==================== Settings ==================== -->
+    <string name="settings_profile_details">Profile Details</string>
+    <string name="settings_password">Password</string>
+    <string name="settings_dark_mode">Dark Mode</string>
+    <string name="settings_support">Support</string>
+    <string name="settings_report_issue">Report an Issue</string>
+    <string name="settings_about_app">About the App</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_logout">Log out</string>
+
+    <!-- ==================== Toast / Snackbar ==================== -->
+    <string name="msg_parent_missing">Parent ID missing!</string>
+    <string name="msg_child_missing">Child UID missing!</string>
+    <string name="msg_zone_name_blank">Zone name cannot be blank.</string>
+    <string name="msg_radius_invalid">Radius must be > 0.</string>
+    <string name="msg_zone_added">Danger Zone added!</string>
+    <string name="msg_zone_failed">Failed: %1$s</string>
+    <string name="msg_error_generic">Error: %1$s</string>
+
+    <string name="msg_password_updated">Password updated</string>
+    <string name="msg_password_update_failed">Failed to update password</string>
+    <string name="msg_profile_saved">Profile saved</string>
+    <string name="msg_profile_save_failed">Failed to save profile</string>
+    <string name="msg_signup_success">Sign Up Successful! Parent ID: %1$s</string>
+    <string name="msg_all_fields_required">All fields are required</string>
+    <string name="msg_passwords_mismatch">Passwords do not match</string>
+    <string name="error_email_password_required">Email &amp; Password required</string>
+    <string name="error_passwords_do_not_match">Passwords do not match</string>
+    <string name="error_email_not_registered">Email not registered</string>
+    <string name="error_incorrect_password">Incorrect password</string>
+    <string name="error_login_failed">Login failed: %1$s</string>
+    <string name="error_password_too_short">Password must be at least 6 characters</string>
+    <string name="error_user_not_logged_in">User not logged in</string>
+    <string name="error_current_password_incorrect">Current password is incorrect</string>
+
+    <!-- ==================== Notification channel / alert strings ==================== -->
+    <string name="notif_title_tracking">KidsControl — Tracking</string>
+    <string name="notif_text_tracking">Tracking child…</string>
+    <string name="notif_channel_dangerzone">DangerZone Service</string>
+    <string name="notif_channel_fcm">Danger Zone Alerts</string>
+    <string name="notif_danger_alert_title">Danger Zone Alert</string>
+    <string name="toast_fcm_message">%1$s: %2$s&#10;%3$s: %4$s</string>
+
+    <!-- ==================== Misc ==================== -->
+    <string name="version_format">Version %1$s</string>
+
 </resources>

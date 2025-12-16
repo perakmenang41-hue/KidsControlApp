@@ -1,6 +1,8 @@
 package com.example.kidscontrolapp.system
 
-import android.app.*
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.location.Location
@@ -8,51 +10,56 @@ import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
-import com.example.kidscontrolapp.viewmodel.ChildLocationViewModel
+import com.example.kidscontrolapp.R
+import com.example.kidscontrolapp.viewmodel.ChildLocationHelper   // <-- NEW IMPORT
 import com.google.android.gms.location.*
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class LocationService : Service() {
 
     companion object {
         const val ACTION_START = "com.example.kidscontrolapp.START"
-        const val ACTION_STOP = "com.example.kidscontrolapp.STOP"
-        const val CHANNEL_ID = "location_service_channel"
+        const val ACTION_STOP  = "com.example.kidscontrolapp.STOP"
+        const val CHANNEL_ID   = "location_service_channel"
     }
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
 
-    // 🔥 Now dynamic (received from Intent)
     private var parentId: String = ""
     private var childUid: String = ""
+
+    // -------------------------------------------------
+    // Inject the helper (no longer a ViewModel)
+    // -------------------------------------------------
+    @Inject lateinit var childLocationHelper: ChildLocationHelper   // <-- NEW FIELD
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
-        if (intent?.action == ACTION_START) {
-
-            // Receive dynamic parentId + childUid
-            parentId = intent.getStringExtra("parentId") ?: ""
-            childUid = intent.getStringExtra("childUid") ?: ""
-
-            startForegroundService()
+        when (intent?.action) {
+            ACTION_START -> {
+                parentId = intent.getStringExtra("parentId") ?: ""
+                childUid = intent.getStringExtra("childUid") ?: ""
+                launchForegroundService()
+            }
+            ACTION_STOP -> stopForegroundService()
         }
-
-        if (intent?.action == ACTION_STOP) {
-            stopForegroundService()
-        }
-
         return START_STICKY
     }
 
-    private fun startForegroundService() {
+    // -------------------------------------------------
+    // Helper that starts the foreground service
+    // -------------------------------------------------
+    private fun launchForegroundService() {
         createNotificationChannel()
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Child Tracking Service")
-            .setContentText("Tracking child in background")
+            .setContentTitle(getString(R.string.notification_title))
+            .setContentText(getString(R.string.notification_text))
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .build()
 
@@ -88,13 +95,10 @@ class LocationService : Service() {
         }
     }
 
-    private val childLocationViewModel = ChildLocationViewModel()
-
     private fun sendLocation(location: Location, battery: Int = 100) {
-
         if (parentId.isBlank() || childUid.isBlank()) return
 
-        childLocationViewModel.sendChildLocationUpdate(
+        childLocationHelper.sendChildLocationUpdate(
             context = this,
             parentId = parentId,
             childUID = childUid,

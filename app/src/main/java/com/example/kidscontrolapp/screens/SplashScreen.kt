@@ -10,25 +10,33 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.delay
 import com.example.kidscontrolapp.R
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @Composable
 fun SplashScreen(navController: NavHostController) {
+
+    // 🔒 Navigation guard (SURVIVES recomposition)
+    var hasNavigated by rememberSaveable { mutableStateOf(false) }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.ktracker), // your drawable
+            painter = painterResource(id = R.drawable.ktracker),
             contentDescription = "Splash Logo",
             modifier = Modifier.size(200.dp)
         )
     }
 
-    // Navigate to login after 2 seconds
-    LaunchedEffect(Unit) {
-        delay(2000)
-        navController.navigate("login") {
-            popUpTo("splash") { inclusive = true }
+    LaunchedEffect(hasNavigated) {
+        if (!hasNavigated) {
+            hasNavigated = true
+            delay(2000)
+            navController.navigate("login") {
+                popUpTo("splash") { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 }

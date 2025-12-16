@@ -26,3 +26,37 @@ logs
 dist/
 build/
 "firebaseServiceAccountKey.json" 
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Env
+.env
+.env.local
+.env.production
+
+# Firebase
+.firebase/
+serviceAccountKey.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/
+
+# JVM crash dumps
+*.hprof
+

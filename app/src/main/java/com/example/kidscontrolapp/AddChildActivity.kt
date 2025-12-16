@@ -11,7 +11,9 @@ import androidx.compose.ui.unit.dp
 import com.example.kidscontrolapp.ui.theme.KidsControlAppTheme
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
+import dagger.hilt.android.AndroidEntryPoint   // ← Hilt import
 
+@AndroidEntryPoint                              // ← Hilt entry point
 class AddChildActivity : ComponentActivity() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -34,6 +36,9 @@ class AddChildActivity : ComponentActivity() {
     }
 }
 
+/* ----------------------------------------------------------------- */
+/* The composable stays exactly the same – no changes required.      */
+/* ----------------------------------------------------------------- */
 @Composable
 fun AddChildScreen(onAddChild: (String) -> Unit) {
     var childName by remember { mutableStateOf("") }

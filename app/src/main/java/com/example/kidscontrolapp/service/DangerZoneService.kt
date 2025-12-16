@@ -6,30 +6,35 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
+import com.example.kidscontrolapp.viewmodel.ChildLocationHelper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.example.kidscontrolapp.R
-import com.example.kidscontrolapp.tracking.TrackingManager
-import com.example.kidscontrolapp.viewmodel.ChildLocationViewModel
+import com.example.kidscontrolapp.tracking.TrackingManager // <-- NEW IMPORT
 import com.google.android.gms.location.*
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class DangerZoneService : Service() {
 
     companion object {
         const val CHANNEL_ID = "dangerzone_service_channel"
         const val NOTIF_ID = 1337
-        const val CHILD_UID = "CHILD_UID"  // ← Add this line
+        const val CHILD_UID = "CHILD_UID"
     }
 
     private lateinit var fused: FusedLocationProviderClient
     private lateinit var locationRequest: LocationRequest
-    private val childLocationVM = ChildLocationViewModel()
+
+    // -------------------------------------------------
+    // Inject the helper instead of the old ViewModel
+    // -------------------------------------------------
+    @Inject lateinit var childLocationHelper: ChildLocationHelper   // <-- NEW FIELD
 
     override fun onCreate() {
         super.onCreate()
@@ -43,29 +48,37 @@ class DangerZoneService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val childUID = intent?.getStringExtra("CHILD_UID") ?: ""
+        val childUID = intent?.getStringExtra(CHILD_UID) ?: ""
         val parentId = intent?.getStringExtra("parentId") ?: ""
 
-        startForeground(NOTIF_ID, buildNotification("Tracking child..."))
+        val defaultContent = getString(R.string.notif_default_content)
+
+        startForeground(NOTIF_ID, buildNotification(defaultContent))
         startLocationUpdates()
 
-        // start tracking loop
-        TrackingManager.startTracking(childLocationVM, parentId, childUID)
+        // Pass the helper to the tracking manager (unchanged API)
+        TrackingManager.startTracking(childLocationHelper, parentId, childUID)
 
         return START_STICKY
     }
 
     private fun startLocationUpdates() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) return
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
 
         fused.requestLocationUpdates(locationRequest, object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 result.lastLocation?.let {
-                    childLocationVM.updateLocation(
+                    childLocationHelper.updateLocation(
                         lat = it.latitude,
                         lon = it.longitude,
                         speed = it.speed,
@@ -76,14 +89,15 @@ class DangerZoneService : Service() {
         }, mainLooper)
     }
 
-    // ===============================
-    // Notification helper functions
-    // ===============================
+    // -------------------------------------------------
+    // Notification helpers (unchanged)
+    // -------------------------------------------------
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelName = getString(R.string.notif_channel_name)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "DangerZone Service",
+                channelName,
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
@@ -92,14 +106,19 @@ class DangerZoneService : Service() {
     }
 
     private fun buildNotification(contentText: String): Notification {
-        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+            this,
+            0,
+            launchIntent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                PendingIntent.FLAG_IMMUTABLE
+            else 0
         )
+        val title = getString(R.string.notif_title)
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("KidsControl — Tracking")
+            .setContentTitle(title)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(pendingIntent)

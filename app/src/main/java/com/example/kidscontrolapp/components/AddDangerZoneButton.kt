@@ -3,9 +3,14 @@ package com.example.kidscontrolapp.components
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
+import com.example.kidscontrolapp.R
 import com.example.kidscontrolapp.model.DangerZone
 import com.example.kidscontrolapp.network.DangerZoneRequest
 import com.example.kidscontrolapp.network.DangerZoneResponse
@@ -26,17 +31,23 @@ fun AddDangerZoneButton(
     zoneName: String = "New Zone",
     radiusText: String = "50",
     viewModel: DangerZoneViewModel,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier // Added modifier for positioning
 ) {
     val context = LocalContext.current
     val radius = radiusText.toDoubleOrNull() ?: 50.0
     var showDialog by remember { mutableStateOf(false) }
 
-    Button(
-        onClick = { showDialog = true },
-        enabled = enabled
+    FloatingActionButton(
+        onClick = { if (enabled) showDialog = true },
+        containerColor = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = modifier // Apply the modifier here
     ) {
-        Text(text = "Add Danger Zone")
+        Icon(
+            painter = painterResource(id = R.drawable.add),
+            contentDescription = "Add Danger Zone",
+            modifier = Modifier.size(32.dp)
+        )
     }
 
     if (showDialog) {
@@ -48,7 +59,6 @@ fun AddDangerZoneButton(
                 Button(onClick = {
                     showDialog = false
 
-                    // 1️⃣ Validate inputs
                     if (parentId.isBlank()) {
                         Toast.makeText(context, "Parent ID missing!", Toast.LENGTH_LONG).show()
                         Log.e("AddDangerZone", "Parent ID empty, canceling.")
@@ -71,10 +81,8 @@ fun AddDangerZoneButton(
                         return@Button
                     }
 
-                    // 2️⃣ Send request to backend only (backend writes to Firestore)
                     addDangerZoneToBackend(parentId, zoneName, childLat, childLng, radius, context, viewModel)
 
-                    // 3️⃣ Update child_position automatically (optional)
                     val updateRequest = UpdateLocationRequest(
                         childUID = childUID,
                         lat = childLat,
@@ -85,19 +93,20 @@ fun AddDangerZoneButton(
                     )
                     Log.d("AddZoneUpdate", "Sending child_position update: $updateRequest")
 
-                    RetrofitClient.api.updateChildLocation(updateRequest).enqueue(object : Callback<GenericResponse> {
-                        override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
-                            if (response.isSuccessful) {
-                                Log.d("AddZoneUpdate", "Child position updated successfully: ${response.body()}")
-                            } else {
-                                Log.e("AddZoneUpdate", "Failed HTTP ${response.code()}: ${response.errorBody()?.string()}")
+                    RetrofitClient.api.updateChildLocation(updateRequest)
+                        .enqueue(object : Callback<GenericResponse> {
+                            override fun onResponse(call: Call<GenericResponse>, response: Response<GenericResponse>) {
+                                if (response.isSuccessful) {
+                                    Log.d("AddZoneUpdate", "Child position updated: ${response.body()}")
+                                } else {
+                                    Log.e("AddZoneUpdate", "Failed HTTP ${response.code()}: ${response.errorBody()?.string()}")
+                                }
                             }
-                        }
 
-                        override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
-                            Log.e("AddZoneUpdate", "Failed to update child position", t)
-                        }
-                    })
+                            override fun onFailure(call: Call<GenericResponse>, t: Throwable) {
+                                Log.e("AddZoneUpdate", "Failed to update child position", t)
+                            }
+                        })
 
                 }) {
                     Text("Yes")
@@ -130,8 +139,6 @@ private fun addDangerZoneToBackend(
             if (response.isSuccessful && response.body()?.success == true) {
                 val zoneId = response.body()?.zoneId ?: return
                 Toast.makeText(context, "Danger Zone added!", Toast.LENGTH_SHORT).show()
-
-                // Update ViewModel to refresh UI
                 viewModel.addZone(DangerZone(zoneId, name, lat, lng, radius))
                 Log.d("AddDangerZone", "Zone added successfully to ViewModel: $zoneId")
             } else {
@@ -144,7 +151,6 @@ private fun addDangerZoneToBackend(
         override fun onFailure(call: Call<DangerZoneResponse>, t: Throwable) {
             Log.e("AddDangerZone", "Network error", t)
             Toast.makeText(context, "Error: ${t.message}", Toast.LENGTH_LONG).show()
-
             if (retry && t is java.net.SocketTimeoutException) {
                 Log.d("AddDangerZone", "Retrying backend request due to timeout...")
                 addDangerZoneToBackend(parentId, name, lat, lng, radius, context, viewModel, retry = false)

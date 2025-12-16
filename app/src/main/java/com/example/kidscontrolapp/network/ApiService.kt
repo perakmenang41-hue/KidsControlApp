@@ -4,10 +4,10 @@ import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.HTTP
 
 interface ApiService {
 
@@ -23,9 +23,11 @@ interface ApiService {
     // ------------------------
     // Remove Danger Zone
     // ------------------------
-    @DELETE("api/danger-zone/delete/{zoneId}") // Correct method type
+    @Headers("Content-Type: application/json")
+    @HTTP(method = "DELETE", path = "api/danger-zone/delete/{zoneId}", hasBody = true)
     fun removeDangerZone(
-        @Path("zoneId") zoneId: String // Pass the zone ID in URL path
+        @Path("zoneId") zoneId: String,
+        @Body body: DeleteZoneRequest
     ): Call<DangerZoneResponse>
 
     // ------------------------
